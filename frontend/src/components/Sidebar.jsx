@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import './Sidebar.css';
+import chLogo from '../assets/ch-logo.png';
+
 
 export default function Sidebar({
   conversations,
@@ -38,9 +40,11 @@ export default function Sidebar({
     <div className="sidebar">
       <div className="sidebar-header">
         <div className="sidebar-title-wrapper">
-          <div className="sidebar-title">LLM Council <span className="title-plus">Plus</span></div>
-          <div className="sidebar-subtitle">Created by: Jacob Ben-David</div>
+          <div className="sidebar-title">ConsiliumAI</div>
+          <div className="sidebar-subtitle">The CH Consulting Advisors AI Engine</div>
         </div>
+
+
         <button
           className="icon-button"
           onClick={onOpenSettings}

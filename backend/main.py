@@ -1,6 +1,7 @@
 """FastAPI backend for LLM Council."""
 
-from fastapi import FastAPI, HTTPException, Request
+
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -9,6 +10,12 @@ import os
 import uuid
 import json
 import asyncio
+import pathlib
+
+
+from .conversation import ConversationManager
+
+conversation_manager = ConversationManager(max_turns=12)
 
 from . import storage
 from .council import generate_conversation_title, generate_search_query, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings, PROVIDERS
@@ -93,6 +100,88 @@ async def delete_conversation(conversation_id: str):
         raise HTTPException(status_code=404, detail="Conversation not found")
     return {"status": "deleted"}
 
+# ---- Document upload ----
+
+from typing import List
+from fastapi import File, UploadFile
+
+UPLOAD_ROOT = pathlib.Path("data") / "uploads"
+UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+
+
+@app.post("/api/conversations/{conversation_id}/documents")
+async def upload_documents(
+    conversation_id: str,
+    files: List[UploadFile] = File(...)
+):
+    # Create per-conversation directory
+    conv_dir = UPLOAD_ROOT / conversation_id
+    conv_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_files = []
+
+    for f in files:
+        dest_path = conv_dir / f.filename
+        # Save file contents to disk
+        content = await f.read()
+        with dest_path.open("wb") as out:
+            out.write(content)
+        saved_files.append(str(dest_path))
+
+    return {"status": "ok", "saved_files": saved_files}
+
+
+
+
+    # Create per-conversation directory
+    conv_dir = UPLOAD_ROOT / conversation_id
+    conv_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_files = []
+
+    for f in files:
+        dest_path = conv_dir / f.filename
+        # Save file contents to disk
+        with dest_path.open("wb") as out:
+            content = await f.read()
+            out.write(content)
+        saved_files.append(str(dest_path))
+
+    return {"status": "ok", "saved_files": saved_files}
+
+
+    """
+    Upload one or more documents and associate them with a conversation.
+    For now this just saves them to disk under data/uploads/{conversation_id}/.
+    """
+    # Make sure conversation exists
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    convo_dir = UPLOAD_ROOT / conversation_id
+    convo_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_files = []
+    for f in files:
+        # Simple filename handling
+        safe_name = pathlib.Path(f.filename).name
+        target_path = convo_dir / safe_name
+
+        # Save file contents
+        with target_path.open("wb") as out:
+            content = await f.read()
+            out.write(content)
+
+        saved_files.append({
+            "filename": safe_name,
+            "path": str(target_path),
+            "size": len(content),
+        })
+
+    return {"conversation_id": conversation_id, "files": saved_files}
+
+
 
 @app.post("/api/conversations/{conversation_id}/message/stream")
 async def send_message_stream(conversation_id: str, body: SendMessageRequest, request: Request):
@@ -122,8 +211,36 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
             label_to_model = {}
             aggregate_rankings = {}
             
+            # Load any uploaded documents for this conversation
+            documents_context = ""
+            uploads_root = pathlib.Path("data") / "uploads" / conversation_id
+
+            if uploads_root.exists() and uploads_root.is_dir():
+                doc_texts = []
+                # Read a bit from each file (simple PoC)
+                for path in uploads_root.iterdir():
+                    if path.is_file():
+                        try:
+                            # Read up to 50 KB per file to avoid huge prompts
+                            with path.open("r", encoding="utf-8", errors="ignore") as f:
+                                content = f.read(50_000)
+                            doc_texts.append(f"--- File: {path.name} ---\n{content}")
+                        except Exception as e:
+                            print(f"Error reading document {path}: {e}")
+
+                if doc_texts:
+                    documents_context = "\n\n".join(doc_texts)
+
+
             # Add user message
             storage.add_user_message(conversation_id, body.content)
+
+            # Record turn in conversation memory
+            conversation_manager.add_turn("user", body.content)
+
+            # Build context text (summary + recent turns)
+            context_text = conversation_manager.get_context_text()
+
 
             # Start title generation in parallel (don't await yet)
             title_task = None
@@ -176,25 +293,56 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
                 yield f"data: {json.dumps({'type': 'search_complete', 'data': {'search_query': search_query, 'extracted_query': extracted_query, 'search_context': search_context, 'provider': provider.value}})}\n\n"
                 await asyncio.sleep(0.05)
 
-            # Stage 1: Collect responses
+             # Stage 1: Collect responses
             yield f"data: {json.dumps({'type': 'stage1_start'})}\n\n"
             await asyncio.sleep(0.05)
-            
+
             total_models = 0
-            
-            async for item in stage1_collect_responses(body.content, search_context, request):
+
+            # Build an augmented message that includes context and documents for the council
+            if context_text or documents_context:
+                sections = []
+
+                if context_text:
+                    sections.append(
+                        "Conversation context so far (treat these facts as stable unless the user clearly changes them):\n"
+                        f"{context_text}"
+                    )
+
+                if documents_context:
+                    sections.append(
+                        "The user has uploaded the following documents. Use them as primary sources when answering, "
+                        "and prefer their contents over general knowledge when relevant:\n"
+                        f"{documents_context}"
+                    )
+
+                combined_context = "\n\n".join(sections)
+
+                stage1_input = (
+                    "You are continuing a multi-turn conversation with access to prior context and uploaded documents.\n\n"
+                    f"{combined_context}\n\n"
+                    f"New user message: {body.content}"
+                )
+            else:
+                stage1_input = body.content
+
+            async for item in stage1_collect_responses(stage1_input, search_context, request):
+
                 if isinstance(item, int):
                     total_models = item
                     print(f"DEBUG: Sending stage1_init with total={total_models}")
                     yield f"data: {json.dumps({'type': 'stage1_init', 'total': total_models})}\n\n"
                     continue
-                
+
                 stage1_results.append(item)
                 yield f"data: {json.dumps({'type': 'stage1_progress', 'data': item, 'count': len(stage1_results), 'total': total_models})}\n\n"
                 await asyncio.sleep(0.01)
 
             yield f"data: {json.dumps({'type': 'stage1_complete', 'data': stage1_results})}\n\n"
             await asyncio.sleep(0.05)
+
+
+
 
             # Check if any models responded successfully in Stage 1
             if not any(r for r in stage1_results if not r.get('error')):
@@ -273,6 +421,21 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
                 stage3_result if body.execution_mode == "full" else None,
                 metadata
             )
+
+            # Build a simple final answer string for memory
+            final_answer_text = ""
+
+            if body.execution_mode == "full" and stage3_result and isinstance(stage3_result, dict):
+                final_answer_text = stage3_result.get("final_answer") or stage3_result.get("content", "")
+            elif stage1_results:
+                # Fallback: use the first stage1 answer_TEXT field if present
+                first = stage1_results[0]
+                if isinstance(first, dict):
+                    final_answer_text = first.get("answer") or first.get("content", "")
+
+            if final_answer_text:
+                conversation_manager.add_turn("assistant", final_answer_text)
+
 
             # Send completion event
             yield f"data: {json.dumps({'type': 'complete'})}\n\n"

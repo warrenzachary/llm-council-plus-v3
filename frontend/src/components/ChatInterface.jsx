@@ -10,6 +10,7 @@ import ExecutionModeToggle from './ExecutionModeToggle';
 import { api } from '../api';
 import './ChatInterface.css';
 
+
 export default function ChatInterface({
     conversation,
     onSendMessage,
@@ -28,12 +29,33 @@ export default function ChatInterface({
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
 
+    const handleUploadDocuments = async (event) => {
+        if (!conversation || !conversation.id) return;
+        const files = Array.from(event.target.files || []);
+        if (!files.length) return;
+
+        const formData = new FormData();
+        files.forEach((file) => {
+            formData.append("files", file);
+        });
+
+        try {
+            await fetch(`/api/conversations/${conversation.id}/documents`, {
+                method: "POST",
+                body: formData,
+            });
+            event.target.value = "";
+        } catch (error) {
+            console.error("Failed to upload documents:", error);
+        }
+    };
+
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
     // Only auto-scroll if user is already near the bottom
-    // This prevents interrupting reading when new content arrives
     useEffect(() => {
         if (!messagesContainerRef.current) return;
 
@@ -41,7 +63,6 @@ export default function ChatInterface({
         const isNearBottom =
             container.scrollHeight - container.scrollTop - container.clientHeight < 150;
 
-        // Auto-scroll only if user is already at/near bottom
         if (isNearBottom) {
             scrollToBottom();
         }
@@ -67,16 +88,26 @@ export default function ChatInterface({
         return (
             <div className="chat-interface">
                 <div className="empty-state">
-                    <h1>Welcome to LLM Council <span className="plus-text">Plus</span></h1>
+                    <h1>Welcome to ConsiliumAI</h1>
                     <p className="hero-message">
-                        The Council is ready to deliberate. <button className="config-link" onClick={() => onOpenSettings('council')}>Configure it</button>
+                        The CH Consulting Advisors AI Engine
+                    </p>
+                    <p className="hero-message">
+                        <button
+                            className="config-link"
+                            onClick={() => onOpenSettings('council')}
+                        >
+                            Configure it
+                        </button>
                     </p>
 
-                    {/* Council Preview Grid */}
                     <div className="welcome-grid-container">
-                        <CouncilGrid models={councilModels} chairman={chairmanModel} status="idle" />
+                        <CouncilGrid
+                            models={councilModels}
+                            chairman={chairmanModel}
+                            status="idle"
+                        />
                     </div>
-
                 </div>
             </div>
         );
@@ -89,10 +120,16 @@ export default function ChatInterface({
                 {(!conversation || conversation.messages.length === 0) ? (
                     <div className="hero-container">
                         <div className="hero-content">
-                            <h1>Welcome to LLM Council <span className="text-gradient">Plus</span></h1>
+                            <h1>Welcome to ConsiliumAI</h1>
                             <p className="hero-subtitle">
-                                The Council is ready to deliberate. <button className="config-link" onClick={() => onOpenSettings('council')}>Configure it</button>
+                                The CH Consulting Advisors AI Engine
                             </p>
+                            <p className="hero-subtitle">
+                                <button className="config-link" onClick={() => onOpenSettings('council')}>
+                                    Configure it
+                                </button>
+                            </p>
+
                             <div className="welcome-grid-container">
                                 <CouncilGrid models={councilModels} chairman={chairmanModel} status="idle" />
                             </div>
@@ -102,7 +139,7 @@ export default function ChatInterface({
                     conversation.messages.map((msg, index) => (
                         <div key={index} className={`message ${msg.role}`}>
                             <div className="message-role">
-                                {msg.role === 'user' ? 'Your Question to the Council' : 'LLM Council'}
+                                {msg.role === 'user' ? 'Your Question to the Council' : 'ConsiliumAI Council'}
                             </div>
 
                             <div className="message-content">
@@ -149,7 +186,7 @@ export default function ChatInterface({
                                                     )}
                                                 </div>
                                                 <CouncilGrid
-                                                    models={councilModels} // Use the same models list
+                                                    models={councilModels}
                                                     chairman={chairmanModel}
                                                     status={msg.loading?.stage1 ? 'thinking' : 'complete'}
                                                     progress={{
@@ -160,7 +197,7 @@ export default function ChatInterface({
                                             </div>
                                         )}
 
-                                        {/* Stage 1 Results (Accordion/List - kept for detail view) */}
+                                        {/* Stage 1 Results */}
                                         {msg.stage1 && (
                                             <Stage1
                                                 responses={msg.stage1}
@@ -259,8 +296,26 @@ export default function ChatInterface({
                                 style={{ height: 'auto', minHeight: '24px' }}
                             />
 
+                                                        {/* Upload documents */}
+                            {!isLoading && (
+                                <label className="upload-button">
+                                    📎
+                                    <input
+                                        type="file"
+                                        multiple
+                                        style={{ display: "none" }}
+                                        onChange={handleUploadDocuments}
+                                    />
+                                </label>
+                            )}
+
                             {isLoading ? (
-                                <button type="button" className="send-button stop-button" onClick={onAbort} title="Stop Generation">
+                                <button
+                                    type="button"
+                                    className="send-button stop-button"
+                                    onClick={onAbort}
+                                    title="Stop Generation"
+                                >
                                     ⏹
                                 </button>
                             ) : (
@@ -268,6 +323,8 @@ export default function ChatInterface({
                                     ➤
                                 </button>
                             )}
+
+
                         </div>
 
                         <div className="input-row-bottom">
