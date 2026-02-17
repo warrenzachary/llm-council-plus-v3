@@ -7,7 +7,7 @@ import Stage2 from './Stage2';
 import Stage3 from './Stage3';
 import CouncilGrid from './CouncilGrid';
 import ExecutionModeToggle from './ExecutionModeToggle';
-import { api } from '../api';
+import { api, API_BASE } from '../api';
 import './ChatInterface.css';
 
 
@@ -40,13 +40,34 @@ export default function ChatInterface({
         });
 
         try {
-            await fetch(`/api/conversations/${conversation.id}/documents`, {
+            const res = await fetch(`${API_BASE}/api/conversations/${conversation.id}/documents`, {
                 method: "POST",
                 body: formData,
             });
+            if (!res.ok) {
+                const bodyText = await res.text();
+                console.error("Upload failed:", {
+                    status: res.status,
+                    statusText: res.statusText,
+                    body: bodyText,
+                    conversationId: conversation.id,
+                    apiBase: API_BASE,
+                });
+                return;
+            }
+            let response;
+            try {
+                response = await res.json();
+            } catch (_) {
+                response = null;
+            }
+            console.log("Upload success:", { conversationId: conversation.id, response });
             event.target.value = "";
         } catch (error) {
-            console.error("Failed to upload documents:", error);
+            console.error("Failed to upload documents:", error, {
+                conversationId: conversation.id,
+                apiBase: API_BASE,
+            });
         }
     };
 

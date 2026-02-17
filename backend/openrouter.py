@@ -45,6 +45,7 @@ async def query_model(
     for attempt in range(MAX_RETRIES):
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
+
                 response = await client.post(
                     OPENROUTER_API_URL,
                     headers=headers,

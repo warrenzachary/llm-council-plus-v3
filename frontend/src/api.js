@@ -12,7 +12,7 @@ const getApiBase = () => {
   return `http://${hostname}:8001`;
 };
 
-const API_BASE = getApiBase();
+export const API_BASE = getApiBase();
 
 export const api = {
   /**
