@@ -102,9 +102,6 @@ async def delete_conversation(conversation_id: str):
 
 # ---- Document upload ----
 
-from typing import List
-from fastapi import File, UploadFile
-
 UPLOAD_ROOT = pathlib.Path("data") / "uploads"
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 
@@ -131,56 +128,20 @@ async def upload_documents(
     return {"status": "ok", "saved_files": saved_files}
 
 
-
-
-    # Create per-conversation directory
+@app.get("/api/conversations/{conversation_id}/documents")
+async def list_documents(conversation_id: str):
+    """Return list of uploaded files for a conversation."""
     conv_dir = UPLOAD_ROOT / conversation_id
-    conv_dir.mkdir(parents=True, exist_ok=True)
-
-    saved_files = []
-
-    for f in files:
-        dest_path = conv_dir / f.filename
-        # Save file contents to disk
-        with dest_path.open("wb") as out:
-            content = await f.read()
-            out.write(content)
-        saved_files.append(str(dest_path))
-
-    return {"status": "ok", "saved_files": saved_files}
-
-
-    """
-    Upload one or more documents and associate them with a conversation.
-    For now this just saves them to disk under data/uploads/{conversation_id}/.
-    """
-    # Make sure conversation exists
-    conversation = storage.get_conversation(conversation_id)
-    if conversation is None:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-
-    convo_dir = UPLOAD_ROOT / conversation_id
-    convo_dir.mkdir(parents=True, exist_ok=True)
-
-    saved_files = []
-    for f in files:
-        # Simple filename handling
-        safe_name = pathlib.Path(f.filename).name
-        target_path = convo_dir / safe_name
-
-        # Save file contents
-        with target_path.open("wb") as out:
-            content = await f.read()
-            out.write(content)
-
-        saved_files.append({
-            "filename": safe_name,
-            "path": str(target_path),
-            "size": len(content),
-        })
-
-    return {"conversation_id": conversation_id, "files": saved_files}
-
+    if not conv_dir.exists():
+        return {"files": []}
+    files = []
+    for path in conv_dir.iterdir():
+        if path.is_file():
+            files.append({
+                "filename": path.name,
+                "size": path.stat().st_size,
+            })
+    return {"files": files}
 
 
 @app.post("/api/conversations/{conversation_id}/message/stream")
@@ -211,7 +172,7 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
             label_to_model = {}
             aggregate_rankings = {}
             
-            # Load any uploaded documents for this conversation
+            # uploaded documents for this conversation
             documents_context = ""
             uploads_root = pathlib.Path("data") / "uploads" / conversation_id
 
@@ -383,7 +344,7 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
                     print("Client disconnected before Stage 3")
                     raise asyncio.CancelledError("Client disconnected")
 
-                stage3_result = await stage3_synthesize_final(body.content, stage1_results, stage2_results, search_context)
+                stage3_result = await stage3_synthesize_final(body.content, stage1_results, stage2_results, search_context, documents_context)
                 yield f"data: {json.dumps({'type': 'stage3_complete', 'data': stage3_result})}\n\n"
 
             # Wait for title generation if it was started
