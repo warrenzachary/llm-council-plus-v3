@@ -1,3 +1,5 @@
+Checkpoint: 2026-02-17, pushed commits f5abad2 and 7f33068, working tree clean.
+
 Status: DEV_CHECKLIST.md and Notes.md created, document upload working, Gemma removed from council, Chairman label fixed.
 
 # Consilium (LLM Council customization) Notes.md
@@ -294,3 +296,73 @@ State:
 
 Next most valuable step:
 - Implement docx parsing in the document loader so uploaded Word docs can be summarized and cited accurately.
+
+## 15) Claude Code Operating Procedure
+
+This section defines a safe, repeatable workflow for Claude Code to follow when implementing features in this repo. It is designed so Warren can step away while Claude works, without risk of destructive or surprising actions.
+
+### Tier 1: Auto-allowed (read-only, no approval needed)
+
+- `git status`, `git log`, `git diff`, `git branch` (read-only git only)
+- Reading files, searching file contents, listing directories
+- Running tests or type checks that do not install or change anything
+
+Nothing else. No installs, no edits, no network calls, no dependency changes.
+
+### Tier 2: Requires explicit approval every time
+
+**Git operations:**
+- `git commit`, `git push`, `git checkout`, `git reset`, `git rebase`, `git merge`
+
+**File operations:**
+- Creating, editing, deleting, or renaming any file
+
+**Dependency operations:**
+- `npm install`, `npm ci`, `npm update`, `npm uninstall`
+- `uv sync`, `uv pip install`, any dependency install or update
+
+**Config and credentials:**
+- Modifying `.env`, `settings.json`, or any config file
+- Any command that touches network or credentials
+
+**Destructive commands:**
+- Anything with `--force`, `--hard`, `-D`, `rm`, `del`, `Remove-Item`
+
+### Plan mode workflow
+
+1. Before any feature or multi-file change, enter Plan mode.
+2. Explore the codebase (read-only) and draft a plan.
+3. Present the plan for approval before writing any code.
+4. After approval, summarize each file change before applying.
+
+### Change summary format
+
+Before editing any file, Claude outputs:
+
+```
+FILE: <relative path>
+ACTION: edit | create | delete
+SUMMARY: <1-2 sentence description of what changes and why>
+LINES AFFECTED: ~N lines changed
+```
+
+### Approval checklist (before applying changes)
+
+- [ ] Plan was reviewed and approved
+- [ ] Each file change was summarized and approved
+- [ ] No destructive git commands included
+- [ ] No config or secret files modified without explicit ask
+- [ ] No dependencies installed or changed without explicit ask
+- [ ] Backend tested with: `uv run python -m backend.main` (project root terminal)
+- [ ] Frontend tested with: `npm run dev` (frontend folder terminal)
+
+### Terminal guidance
+
+- Default to PowerShell-compatible commands (not bash).
+- Do not use bash-only constructs (`/dev/null`, `&&` chains, `|` pipes with Unix tools) unless Warren explicitly says he is in a bash terminal.
+- Label which terminal to run commands in:
+  - **Project root terminal:** for backend, git, and general commands
+  - **Frontend terminal:** for npm commands, run from `frontend/`
+- Backend start: `uv run python -m backend.main` (project root terminal)
+- Frontend start: `npm run dev` (frontend terminal)
+- Never use `cd backend; python main.py` (breaks relative imports)

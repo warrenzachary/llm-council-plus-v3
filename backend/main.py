@@ -216,17 +216,13 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
             uploads_root = pathlib.Path("data") / "uploads" / conversation_id
 
             if uploads_root.exists() and uploads_root.is_dir():
+                from .doc_loader import extract_text
+
                 doc_texts = []
-                # Read a bit from each file (simple PoC)
                 for path in uploads_root.iterdir():
                     if path.is_file():
-                        try:
-                            # Read up to 50 KB per file to avoid huge prompts
-                            with path.open("r", encoding="utf-8", errors="ignore") as f:
-                                content = f.read(50_000)
-                            doc_texts.append(f"--- File: {path.name} ---\n{content}")
-                        except Exception as e:
-                            print(f"Error reading document {path}: {e}")
+                        content = extract_text(path)
+                        doc_texts.append(f"--- File: {path.name} ---\n{content}")
 
                 if doc_texts:
                     documents_context = "\n\n".join(doc_texts)
@@ -293,7 +289,7 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
                 yield f"data: {json.dumps({'type': 'search_complete', 'data': {'search_query': search_query, 'extracted_query': extracted_query, 'search_context': search_context, 'provider': provider.value}})}\n\n"
                 await asyncio.sleep(0.05)
 
-             # Stage 1: Collect responses
+            # Stage 1: Collect responses
             yield f"data: {json.dumps({'type': 'stage1_start'})}\n\n"
             await asyncio.sleep(0.05)
 

@@ -332,7 +332,8 @@ async def stage3_synthesize_final(
     user_query: str,
     stage1_results: List[Dict[str, Any]],
     stage2_results: List[Dict[str, Any]],
-    search_context: str = ""
+    search_context: str = "",
+    documents_context: str = ""
 ) -> Dict[str, Any]:
     """
     Stage 3: Chairman synthesizes final response.
@@ -363,6 +364,13 @@ async def stage3_synthesize_final(
     search_context_block = ""
     if search_context:
         search_context_block = f"Context from Web Search:\n{search_context}\n"
+        documents_context_block = ""
+    if documents_context:
+        documents_context_block = f"Context from Uploaded Documents:\n{documents_context}\n"
+    documents_context_block = ""
+    if documents_context:
+        documents_context_block = f"Context from Uploaded Documents:\n{documents_context}\n"
+
 
     try:
         # Ensure prompt is not None
@@ -375,7 +383,8 @@ async def stage3_synthesize_final(
             user_query=user_query,
             stage1_text=stage1_text,
             stage2_text=stage2_text,
-            search_context_block=search_context_block
+            search_context_block=search_context_block,
+            documents_context_block=documents_context_block
         )
     except (KeyError, AttributeError, TypeError) as e:
         logger.warning(f"Error formatting Stage 3 prompt: {e}. Using fallback.")
@@ -496,6 +505,8 @@ def calculate_aggregate_rankings(
     stage2_results: List[Dict[str, Any]],
     label_to_model: Dict[str, str]
 ) -> List[Dict[str, Any]]:
+
+
     """
     Calculate aggregate rankings across all models.
 
