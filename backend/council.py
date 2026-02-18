@@ -364,13 +364,10 @@ async def stage3_synthesize_final(
     search_context_block = ""
     if search_context:
         search_context_block = f"Context from Web Search:\n{search_context}\n"
-        documents_context_block = ""
-    if documents_context:
-        documents_context_block = f"Context from Uploaded Documents:\n{documents_context}\n"
+
     documents_context_block = ""
     if documents_context:
         documents_context_block = f"Context from Uploaded Documents:\n{documents_context}\n"
-
 
     try:
         # Ensure prompt is not None
@@ -505,8 +502,6 @@ def calculate_aggregate_rankings(
     stage2_results: List[Dict[str, Any]],
     label_to_model: Dict[str, str]
 ) -> List[Dict[str, Any]]:
-
-
     """
     Calculate aggregate rankings across all models.
 
