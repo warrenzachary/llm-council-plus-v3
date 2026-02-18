@@ -71,6 +71,19 @@ export const api = {
   },
 
   /**
+   * List uploaded documents for a conversation.
+   */
+  async getDocuments(conversationId) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/documents`
+    );
+    if (!response.ok) {
+      throw new Error('Failed to get documents');
+    }
+    return response.json();
+  },
+
+  /**
    * Send a message in a conversation.
    */
   async sendMessage(conversationId, content, webSearch = false) {

@@ -463,6 +463,42 @@
   max-width: fit-content;
 }
 
+/* Uploaded files indicator bar */
+.uploaded-files-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.4;
+  flex-wrap: wrap;
+}
+
+.uploaded-files-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.uploaded-files-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.uploaded-file-tag {
+  white-space: nowrap;
+}
+
+.uploaded-file-size {
+  color: rgba(255, 255, 255, 0.35);
+  margin-left: 2px;
+}
+
+.uploaded-file-sep {
+  color: rgba(255, 255, 255, 0.25);
+}
+
 .stage-loading {
   display: flex;
   align-items: center;

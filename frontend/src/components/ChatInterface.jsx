@@ -26,8 +26,29 @@ export default function ChatInterface({
 }) {
     const [input, setInput] = useState('');
     const [webSearch, setWebSearch] = useState(false);
+    const [uploadedFiles, setUploadedFiles] = useState([]);
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
+
+    // Fetch the list of uploaded files for the current conversation
+    const fetchUploadedFiles = async () => {
+        if (!conversation || !conversation.id) {
+            setUploadedFiles([]);
+            return;
+        }
+        try {
+            const data = await api.getDocuments(conversation.id);
+            setUploadedFiles(data.files || []);
+        } catch (err) {
+            console.error("Failed to fetch document list:", err);
+            setUploadedFiles([]);
+        }
+    };
+
+    // Refresh file list when conversation changes
+    useEffect(() => {
+        fetchUploadedFiles();
+    }, [conversation?.id]);
 
     const handleUploadDocuments = async (event) => {
         if (!conversation || !conversation.id) return;
@@ -63,6 +84,7 @@ export default function ChatInterface({
             }
             console.log("Upload success:", { conversationId: conversation.id, response });
             event.target.value = "";
+            fetchUploadedFiles();
         } catch (error) {
             console.error("Failed to upload documents:", error, {
                 conversationId: conversation.id,
@@ -347,6 +369,25 @@ export default function ChatInterface({
 
 
                         </div>
+
+                        {uploadedFiles.length > 0 && (
+                            <div className="uploaded-files-bar">
+                                <span className="uploaded-files-icon">📎</span>
+                                <span className="uploaded-files-list">
+                                    {uploadedFiles.map((f, i) => (
+                                        <span key={f.filename} className="uploaded-file-tag">
+                                            {f.filename}
+                                            <span className="uploaded-file-size">
+                                                ({f.size < 1024 ? `${f.size} B`
+                                                    : f.size < 1048576 ? `${(f.size / 1024).toFixed(0)} KB`
+                                                    : `${(f.size / 1048576).toFixed(1)} MB`})
+                                            </span>
+                                            {i < uploadedFiles.length - 1 && <span className="uploaded-file-sep"> · </span>}
+                                        </span>
+                                    ))}
+                                </span>
+                            </div>
+                        )}
 
                         <div className="input-row-bottom">
                             <ExecutionModeToggle
