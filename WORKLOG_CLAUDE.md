@@ -1,72 +1,60 @@
 # Claude Code Work Log
 
-Session: 2026-02-17
-Branch: cc/autonomous-20260217
-Task: MVP Document Ingestion (PDF, PPTX, XLSX) + Uploaded Files UI
+Repo: llm-council-plus - v3
+Format: Append-only. Each entry records one logically grouped change or decision.
 
-## Changes Made
+---
 
-### 1. Fix council.py documents_context_block bug -- DONE
+## 2026-02-17 -- Branch: cc/autonomous-20260217
+
+### Entry 1 | council.py bug fix
 - **Commit:** a8d59bd
-- **File:** backend/council.py
-- **What:** Removed duplicated/shadowed `documents_context_block` assignments. The variable was set inside `if search_context:`, unconditionally reset to `""`, then set again. Simplified to one clean init + one conditional.
-- **Also:** Removed spurious blank lines before `calculate_aggregate_rankings` docstring.
+- **Files:** backend/council.py
+- **What:** Fixed `documents_context_block` shadowing bug in `stage3_synthesize_final`. The variable was set inside `if search_context:`, then unconditionally reset to `""`, then set again. Simplified to one init + one conditional. Also removed spurious blank lines before `calculate_aggregate_rankings` docstring.
+- **Follow-up:** None.
 
-### 2. Add dependencies to pyproject.toml -- DONE
+### Entry 2 | Declare new dependencies
 - **Commit:** b74cddf
-- **File:** pyproject.toml
-- **What:** Added 5 dependencies: pypdf, python-pptx, openpyxl, python-docx, python-multipart.
-- **Note:** NOT installed yet. Requires `uv sync` after review.
+- **Files:** pyproject.toml
+- **What:** Added pypdf, python-pptx, openpyxl, python-docx, python-multipart to dependencies list.
+- **Follow-up:** Requires `uv sync` (not yet run -- needs Warren's approval).
 
-### 3. Verify backend/doc_loader.py -- DONE (no changes needed)
-- **File:** backend/doc_loader.py
-- **What:** Already created in WIP commit (da7161e). Verified it matches the approved plan exactly: PDF/DOCX/PPTX/XLSX extractors, 50k char cap, try/except on every format, unsupported-type placeholder for unknown binaries.
-
-### 4. Clean up main.py -- DONE
+### Entry 3 | main.py cleanup + new endpoint + Stage 3 fix
 - **Commit:** 21bb937
-- **File:** backend/main.py
+- **Files:** backend/main.py
 - **What:**
-  - Removed ~50 lines of unreachable dead code after upload endpoint return statement
-  - Removed duplicate `from typing import List` and `from fastapi import File, UploadFile` (already imported at top of file)
-  - Added `GET /api/conversations/{conversation_id}/documents` endpoint returning `{files: [{filename, size}]}`
-  - Fixed Stage 3 call: added `documents_context` argument so Chairman sees uploaded docs
+  - Deleted ~50 lines of unreachable dead code after upload endpoint return
+  - Removed duplicate imports (List, File, UploadFile)
+  - Added `GET /api/conversations/{id}/documents` returning `{files: [{filename, size}]}`
+  - Passed `documents_context` to `stage3_synthesize_final` so Chairman sees uploaded docs
+- **Follow-up:** None.
 
-### 5. Frontend: uploaded files display -- DONE
+### Entry 4 | Frontend uploaded files display
 - **Commit:** 25bde77
 - **Files:** frontend/src/api.js, frontend/src/components/ChatInterface.jsx, frontend/src/components/ChatInterface.css
 - **What:**
   - Added `api.getDocuments(conversationId)` method
-  - Added `uploadedFiles` state, fetches on conversation change and after successful upload
-  - Renders compact file bar between input row and execution mode toggle: paperclip icon + filename (size) for each file
-  - CSS consistent with Midnight Glass theme (muted white text, small font)
+  - Added `uploadedFiles` state in ChatInterface, fetches on conversation change and after upload
+  - Renders compact file indicator bar (paperclip + filename + size) between input row and execution mode toggle
+  - CSS uses muted white text, small font, consistent with Midnight Glass theme
+- **Follow-up:** None.
 
-## Commands Run
-- `git status` -- verified working tree state
-- `git branch` -- confirmed on main, then created cc/autonomous-20260217
-- `git diff` / `git diff backend/main.py` / `git diff backend/council.py` -- inspected existing partial changes
-- `git log --oneline -5` -- verified commit history
-- `git add` + `git commit` -- 4 commits total (see above)
-- No install commands run (dependencies declared but not installed)
-- No network commands run
+### Entry 5 | WORKLOG created
+- **Commit:** bf650bf
+- **Files:** WORKLOG_CLAUDE.md
+- **What:** Initial work log with audit trail of session changes.
+- **Follow-up:** File was cleared by Warren; rewritten with running-log format (this version).
 
-## Files NOT Opened (secrets)
-- `frontend/.env.local` -- may contain API URLs
-- `data/settings.json` -- contains saved API keys
-- No `.pem` or credential files accessed
+---
 
-## Review Notes
+## Pending manual steps (for Warren)
 
-### What to review
-1. **backend/council.py** -- Variable shadowing fix (small, straightforward)
-2. **pyproject.toml** -- 5 new dependency declarations
-3. **backend/doc_loader.py** -- Full new module (already committed in WIP, unchanged)
-4. **backend/main.py** -- Dead code removal, new GET endpoint, Stage 3 fix
-5. **frontend/src/api.js** -- New getDocuments method
-6. **frontend/src/components/ChatInterface.jsx** -- State + useEffect + file bar JSX
-7. **frontend/src/components/ChatInterface.css** -- Uploaded files bar styles
+1. **Install deps** (project root terminal): `uv sync`
+2. **Test backend** (project root terminal): `uv run python -m backend.main`
+3. **Test frontend** (frontend terminal): `npm run dev`
+4. **E2E test:** Upload PDF/PPTX/XLSX, verify file bar + summaries work
 
-### Manual steps required after review
-1. Run `uv sync` in project root terminal to install new Python dependencies
-2. Run `uv run python -m backend.main` to start backend and verify no import errors
-3. Run `npm run dev` in frontend terminal to start frontend
-4. Test: upload a PDF, PPTX, and XLSX, verify file bar appears, verify council can summarize them
+## 2026-02-17 (Warren) | End of night status
+- Ran: uv sync; backend started OK; frontend started OK.
+- Next: browser E2E upload test (pdf/pptx/xlsx) + verify file bar + summaries.
+
