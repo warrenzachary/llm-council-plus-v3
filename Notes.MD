@@ -1,17 +1,15 @@
-Checkpoint: 2026-02-17, pushed commits f5abad2 and 7f33068, working tree clean.
-
-Status: DEV_CHECKLIST.md and Notes.md created, document upload working, Gemma removed from council, Chairman label fixed.
+Checkpoint: 2026-02-18. Branch cc/autonomous-20260217. Worklog in WORKLOG_CLAUDE.md.
 
 # Consilium (LLM Council customization) Notes.md
 
-Last updated: 2026-02-17  
-Project: Consilium (based on Andrej Karpathy’s LLM Council)  
-Primary active repo: llm-council-plus - v3  
+Last updated: 2026-02-18
+Project: Consilium (based on Andrej Karpathy’s LLM Council)
+Primary active repo: llm-council-plus - v3
 Path: C:\Projects\02_Active\llm-council-plus - v3\
 
 ## 1) What Consilium is
 
-Consilium is a local, multi-model “council” chat app that runs on a Windows 11 machine with:
+Consilium is a local, multi-model “council” chat app that runs on Windows 11 with:
 - FastAPI backend (Uvicorn)
 - React + Vite frontend
 - Multi-stage orchestration:
@@ -19,7 +17,7 @@ Consilium is a local, multi-model “council” chat app that runs on a Windows 
   - Stage 2: council members evaluate and rank each other
   - Stage 3: a chairman model synthesizes the final answer
 
-Users can create multiple conversations. Each conversation can have uploaded documents. Later, web search and better retrieval can be added.
+Users can create multiple conversations. Each conversation can have uploaded documents. Web search and stronger retrieval can be added later.
 
 ## 2) High-level goals (authoritative)
 
@@ -29,25 +27,23 @@ Users can create multiple conversations. Each conversation can have uploaded doc
    - prior conversation context
    - uploaded documents per conversation
    - optional web search (future or optional)
-4) Uploaded documents are stored per conversation and used in Stage 1 prompts.
+4) Uploaded documents are stored per conversation and used in prompts.
 5) Keep the workflow simple and stable first, then add retrieval, chunking, indexing, and UI polish.
 
-## 3) Working principles for how we work together (Novice Coach Mode)
-
-This project uses a novice-friendly workflow.
+## 3) Working principles (Novice Coach Mode)
 
 Rules:
 - One step at a time. One action per instruction. User reports back after each action.
 - Explicit file paths and exact commands.
-- When copy/pasting multi-line text into code, keep indentation consistent. If needed, add indentation by pressing Space four times (or matching surrounding lines) before pasting.
+- When copy/pasting multi-line text into code, keep indentation consistent. If needed, indent by pressing Space four times (or match surrounding lines) before pasting.
 - Prefer relying on Claude Code in Cursor for code changes, with ChatGPT guiding decisions and debugging steps.
-- Do not assume the environment or folder layout from old prompts. Use the current project folder.
+- Do not assume environment or folder layout from older prompts. Use the current project folder.
 - When something fails, capture:
   - exact UI error
   - relevant backend terminal lines
   - relevant frontend console or network logs
 
-Writing preferences:
+Writing preference:
 - Avoid em dashes.
 
 ## 4) Current environment and how to run
@@ -58,8 +54,8 @@ OS:
 Editor:
 - Cursor (primary)
 
-Backend run (reliable):
-- Open a terminal in Cursor in project root:
+Backend run (project root terminal):
+- Folder:
   C:\Projects\02_Active\llm-council-plus - v3
 - Activate venv:
   .\.venv\Scripts\Activate.ps1
@@ -68,8 +64,8 @@ Backend run (reliable):
 - Backend listens on:
   http://0.0.0.0:8001
 
-Frontend run:
-- Terminal in:
+Frontend run (frontend terminal):
+- Folder:
   C:\Projects\02_Active\llm-council-plus - v3\frontend
 - Install once per clone:
   npm install
@@ -78,16 +74,14 @@ Frontend run:
 - Frontend usually on:
   http://localhost:5173
 
-Opening in Chrome (instead of a Cursor tab):
-- Vite may open in an internal preview depending on Cursor settings.
-- Manual reliable approach:
-  Start-Process "chrome.exe" "http://localhost:5173/"
+Chrome open:
+- Start-Process "chrome.exe" "http://localhost:5173/"
 
-Note on Cursor terminals:
-- Multiple terminals exist (backend, frontend, commands).
-- Switching terminals:
-  Use the “Switch Active Terminal” command (Command Palette) and select from the list.
-- Avoid creating accidental extra split terminals by mis-clicking split controls.
+Terminal naming:
+- Backend terminal: project root directory
+- Frontend terminal: frontend directory
+- Commands terminal: one-off checks
+When referencing a terminal, always identify by its working directory.
 
 ## 5) Current backend behavior
 
@@ -97,14 +91,15 @@ Core endpoints (conceptually):
 - GET /api/conversations/{conversation_id}
 - DELETE /api/conversations/{conversation_id}
 - POST /api/conversations/{conversation_id}/message/stream
+- GET /api/conversations/{conversation_id}/documents
 
 The streaming endpoint drives:
-- Stage 1: each council model answers
-- Stage 2: ranking
-- Stage 3: chairman synthesis
+- Stage 1 member answers
+- Stage 2 ranking
+- Stage 3 chairman synthesis (when using full mode)
 
 Conversation persistence:
-- Uses storage module for conversation/message persistence.
+- Uses storage module for conversation and message persistence.
 - Maintains a condensed context_text from recent turns and summaries.
 
 ## 6) Document upload and storage (implemented)
@@ -112,131 +107,115 @@ Conversation persistence:
 Backend upload endpoint:
 - POST /api/conversations/{conversation_id}/documents
 - Saves uploaded files to:
-  data/uploads/{conversation_id}/<filename>
+  data/uploads/{conversation_id}\<filename>
 
-The endpoint:
-- Verifies conversation exists.
-- Creates the directory if missing.
-- Writes each file with a safe filename.
+Backend documents list endpoint:
+- GET /api/conversations/{conversation_id}/documents
+- Returns a file list with at least filename and size.
 
-Document injection into Stage 1 (implemented):
-- On message stream, backend loads documents for that conversation by reading from:
-  data/uploads/{conversation_id}
-- It currently reads files as text:
-  - path.open("r", encoding="utf-8", errors="ignore")
-  - caps read per file at 50,000 characters
-- It concatenates file contents into documents_context and includes it in the Stage 1 prompt.
+Document parsing and injection:
+- Document text extraction is implemented for:
+  - PDF
+  - PPTX
+  - XLSX
+  - DOCX
+- There is a 50,000 character cap (observed on XLSX extraction), which is expected behavior.
 
-Important limitation:
-- .docx is not plain text. The loader will not properly extract text from docx right now.
+Validated extraction diagnostic:
+- A safe extraction diagnostic was run (no content printed) confirming non-zero extracted text for PDF, PPTX, XLSX, and DOCX.
+- Multi-file upload E2E test confirmed ingestion and summarization across these types.
 
-## 7) Frontend upload wiring (fixed)
+## 7) Frontend upload and file display (implemented)
 
 Frontend upload behavior:
 - Paperclip upload button posts files as FormData to:
   /api/conversations/{conversation.id}/documents
-- Recent fix added better logging and better URL base handling.
 
-Observed evidence:
-- Chrome Console shows:
-  Upload success: { conversationId: "...", response: {...} }
-- Files appear on disk under:
-  data/uploads/<conversationId>
+Uploaded files display:
+- UI shows a compact uploaded file indicator bar (paperclip, filename, size).
+- The UI refreshes this list on conversation change and after upload.
 
-Testing commands used:
-- Verify saved uploads:
-  Get-ChildItem "C:\Projects\02_Active\llm-council-plus - v3\data\uploads\<conversationId>" | Select-Object Name, Length, LastWriteTime
+## 8) Execution modes in UI
 
-## 8) Current model configuration and roles
+Execution mode options in the UI:
+- Chat Only: lite mode, no chairman step, per-model responses only.
+- Chat + Ranking: runs member responses plus ranking output.
+- Full Deliberation: runs the full Stage 1 + Stage 2 + Stage 3 pipeline including chairman synthesis.
 
-Council members (Stage 1):
-- anthropic/claude-opus-4.5
-- openai/gpt-5
-- x-ai/grok-4
-(Gemma was removed due to repeated provider errors.)
+## 9) Current model configuration and roles
 
-Chairman (Stage 3):
-- perplexity/sonar-pro
-
-Important clarification:
+Important role rule:
 - Chairman is not a council member.
 - Chairman runs after Stage 1 and Stage 2, synthesizes final answer.
 
-UI label fix completed:
-- Changed label from:
-  "Chairman's Verdict"
-  to:
-  "Chairman (Synthesis Model)"
-This avoids confusion that the chairman name is the verdict.
+Current configuration being used:
+- Chairman: openai/gpt-4.1
+- Council (4):
+  - anthropic/claude-opus-4.1
+  - x-ai/grok-4
+  - google/gemini-2.5-pro
+  - openai/o4-mini
 
-## 9) Key debugging outcomes and lessons learned
+## 10) Key debugging outcomes and lessons learned
 
-A) OpenRouter environment variable was empty in terminal:
-- OPENROUTER_API_KEY was not set in the terminal session (key_length 0).
-- Direct terminal scripts that relied on OPENROUTER_API_KEY failed.
-- The app itself uses settings first (settings.openrouter_api_key) then falls back to env var.
+A) OpenRouter environment variable issues:
+- OPENROUTER_API_KEY can be empty in a terminal session.
+- The app uses settings first, then falls back to env var.
+- “API key is valid” in Settings is the reliable check for the running app.
 
-B) OpenRouter key is valid in app settings UI:
-- The Settings page confirmed: "API key is valid."
-- This is the reliable key source for the running app.
+B) Document visibility bug in chairman synthesis (resolved):
+- Symptom:
+  - Chairman sometimes claimed “no files attached” even when members summarized docs correctly and the backend documents endpoint listed files.
+- Root causes:
+  1) Stage 3 prompt template missing {documents_context_block}
+  2) Chairman model choice caused identity and role conflicts when using a search-grounded model
+- Fixes applied:
+  - Inserted {documents_context_block} into Stage 3 prompt immediately after {search_context_block}
+  - Changed Chairman to openai/gpt-4.1 to avoid role-rebel behavior
+- Validations:
+  - Full Deliberation multi-file test: Chairman listed all filenames and summarized each.
+  - Regression retest: new conversation, single PDF upload, Full Deliberation: Chairman listed exactly one filename correctly.
+  - Chat Only: member models also listed the correct attached filename.
 
-C) Model-specific failures:
-- google/gemma-3n-e4b-it repeatedly failed with:
-  "Bad request ... Provider returned error"
-- Removing Gemma removed red error cards and stabilized runs.
+If this ever reappears:
+1) Confirm Stage 3 prompt still includes {documents_context_block} after saving.
+2) Add minimal backend logging (no content) showing documents_context length at Stage 3 call time.
+3) Confirm the UI is in Full Deliberation when expecting Stage 3.
 
-D) Intermittent earlier error:
-- [Errno 11001] getaddrinfo failed appeared earlier.
-- Later runs showed stable access to https://openrouter.ai.
-- Treat as a possible intermittent network / DNS / environment fluke.
+## 11) Open issues (active)
 
-E) Vite esbuild issue (older v2 fix, useful to remember):
-- Windows Vite error: spawn UNKNOWN
-- Fix: uninstall and reinstall esbuild
-  npm uninstall esbuild
-  npm install esbuild --save-dev
-- If needed: delete node_modules and reinstall.
+1) Prompt entry UI overlap
+- The prompt entry window can overlap the bottom of the chairman response, blocking last lines.
+- Needs layout or padding fix so the response content is fully visible above the input.
 
-## 10) Open issues (active)
-
-1) Document loader does not parse .docx
-- Symptom: docx uploaded, but council cannot summarize it accurately.
-- Current loader reads as plain text.
-- Needed: docx extraction via python-docx or a converter.
-
-2) Prompt truncation for documents (50,000 character cap per file)
-- Risk: summaries and quotes may miss content after the cap.
-- Needed: better chunking strategy.
-  Examples:
-  - first chunk + last chunk
+2) Prompt truncation for large documents (50,000 character cap)
+- Risk: summaries and quotes can miss content beyond the cap.
+- Later improvements:
+  - chunking strategy
   - chunk selection by keyword
-  - later, embedding retrieval
+  - eventual retrieval and citations
 
 3) Model provider stability and error handling
-- Gemma was removed, but other models can fail occasionally.
-- Needed: graceful behavior when one model fails:
+- Models can fail occasionally.
+- Desired behavior:
   - continue with remaining models
-  - show clear error details in UI for the failed model only
+  - show clear per-model error detail in UI
   - optionally auto-disable persistently failing models
 
-4) Possible duplicate model queries
+4) Possible duplicate model queries (investigate later)
 - In some logs, each model appeared to be called twice.
 - Could be UI double-send, dev-mode behavior, or retries.
-- Needed: confirm whether Stage 1 is invoked once per message in normal flow.
+- Confirm normal flow is one call per model per user prompt.
 
-5) Web search integration is optional and not the current focus
-- Keep as a future enhancement, not required for doc upload stability.
+5) Web search integration
+- Optional. Not the current focus.
 
-## 11) Parking lot (future enhancements)
+## 12) Parking lot (future enhancements)
 
 Documents and retrieval:
-- Add document list endpoint:
-  GET /api/conversations/{id}/documents
-  returns filenames, sizes, timestamps
-- Show uploaded doc list in UI, per conversation.
-- Add a per-message toggle:
-  "Use uploaded docs"
-- Add doc chunking and retrieval:
+- Expand documents endpoint to include timestamps.
+- Add per-message toggle: “Use uploaded docs”.
+- Add chunking and retrieval:
   - embeddings
   - vector store
   - citations pointing to file and chunk
@@ -245,124 +224,110 @@ Model configuration and UX:
 - UI for configuring:
   - council members list
   - chairman model
-  - stage execution mode
+  - execution mode defaults
 - Better labeling and status:
   - show which models ran
   - show which failed and why
   - show timings per stage and per model
 
-Reliability:
+Reliability and observability:
 - Improve logging:
-  - log uploads saved path and bytes
-  - log document loader: which files loaded, how many characters included
-- Add request ids to link frontend request to backend logs.
+  - uploads saved path and bytes
+  - which files loaded and how many characters included
+  - stage-level trace ids to link frontend request to backend logs
 
 Packaging:
-- Longer term: rename folders to consilium/, consolidate v2 and v3, reduce drift from upstream.
+- Longer term: rename folders to consilium/, consolidate versions, reduce drift from upstream.
 - Document which files differ from upstream LLM Council.
 
-## 12) Current “known good” end-to-end test
+## 13) Known good end-to-end tests
 
-Goal: prove upload and usage works.
-
+A) Multi-file E2E doc ingestion and summarization
 1) Create new conversation.
-2) Upload a .txt file (not docx).
-3) Confirm Chrome console shows Upload success with conversationId.
-4) Confirm file exists in:
-   data/uploads/<conversationId>/
-5) Ask:
-   “Summarize the uploaded <filename>. Start with one short direct quote from the file.”
-6) Expect:
-   - council members respond
-   - chairman synthesizes
-   - the quote appears in the first sentence
+2) Upload a PDF, PPTX, XLSX, and DOCX.
+3) Verify backend sees these via:
+   GET /api/conversations/{conversation_id}/documents
+4) Ask:
+   “List the filenames you see attached to this conversation, and for each one, give one sentence on what it is about.”
+5) Expect:
+   - members respond
+   - chairman lists filenames and summarizes each
+   - no “no files attached” behavior
 
-## 13) Notes about what changed recently
+B) Regression: single file
+1) New conversation.
+2) Upload single PDF.
+3) Full Deliberation.
+4) Ask:
+   “List the filenames you see attached to this conversation.”
+5) Expect Chairman lists exactly one filename.
 
-- Frontend upload wiring now posts to the correct endpoint and logs upload success.
-- UI label updated to reduce chairman confusion.
-- Gemma removed from council due to repeated provider errors.
-- Debug prints were temporarily added in backend/openrouter.py during investigation.
-  These should be removed or gated behind a debug flag later.
+## 15) MVP Demo Checklist
 
-## 14) Where we were at the end of this session
+Goal: shareable state where a colleague can try Consilium with real documents.
 
-State:
-- Upload works and files persist per conversation.
-- Council runs with Claude Opus, GPT-5, Grok.
-- Chairman runs with Sonar Pro.
-- Doc usage confirmed for .txt files.
-- Docx parsing not implemented yet.
+Core functionality:
+- [x] Multi-model council answers in parallel (Stage 1)
+- [x] Peer ranking (Stage 2)
+- [x] Chairman synthesis (Stage 3)
+- [x] Execution mode toggle (Chat Only / Chat + Ranking / Full Deliberation)
+- [x] Conversation persistence (create, list, delete, multi-turn context)
+- [x] Document upload (PDF, DOCX, PPTX, XLSX, TXT)
+- [x] Document text extraction with 50k char cap
+- [x] Chairman sees uploaded documents (Stage 3 passthrough fix)
+- [x] Uploaded files indicator bar in UI
+- [x] Labeled "Attach" button (replaces hard-to-find paperclip emoji)
 
-Next most valuable step:
-- Implement docx parsing in the document loader so uploaded Word docs can be summarized and cited accurately.
+Open before sharing:
+- [x] Fix prompt entry overlap blocking bottom of chairman response -- CSS padding-bottom 180px, browser verified 2026-02-24
+- [x] Graceful per-model error display when a provider fails -- already implemented (Stage1.jsx error badge + message, council.py error passthrough)
+- [ ] Quick visual polish pass (spacing, loading states, empty states)
+- [x] Confirm no duplicate model calls -- not a real issue; StrictMode only double-runs effects, not button-click handlers; !isLoading guard prevents double-send
+- [x] Write a short README or onboarding note for a first-time colleague -- SETUP.bat + start_consilium.ps1 (one-click install + desktop launcher)
 
-## 15) Claude Code Operating Procedure
+## 14) Claude Code Operating Procedure (Claude Safe Autonomy Canon reference)
 
-This section defines a safe, repeatable workflow for Claude Code to follow when implementing features in this repo. It is designed so Warren can step away while Claude works, without risk of destructive or surprising actions.
+Use the Claude Safe Autonomy Canon:
+- Repo scoped
+- Avoid secrets (.env*, data/settings.json, *.pem, etc.)
+- Small commits
+- Maintain WORKLOG_CLAUDE.md
+- Do not push unless explicitly told which remote
+- Keep .claude/ ignored
 
-### Tier 1: Auto-allowed (read-only, no approval needed)
+Autonomy tiers (standing rules)
 
-- `git status`, `git log`, `git diff`, `git branch` (read-only git only)
-- Reading files, searching file contents, listing directories
-- Running tests or type checks that do not install or change anything
+A) Pre-approved edits (Claude may do without asking each time):
+- Append-only updates to WORKLOG_CLAUDE.md
+- Non-functional UI copy changes (text labels, tooltips) that do not affect behavior
+- CSS-only tweaks (styling changes) that do not change logic
+- Adding safe, no-content logging statements that do not print secrets or document contents
 
-Nothing else. No installs, no edits, no network calls, no dependency changes.
+B) Requires explicit approval as a batch (not per edit):
+- Any dependency install/change (uv/pip/npm)
+- Any file create/delete/rename/move
+- Any changes touching secrets or config (env files, settings files, keys)
+- Any changes to backend request/response logic, orchestration, or storage
+- Any git actions (commit/push/checkout/reset/rebase/merge)
+- Any command that touches network or credentials outside normal app runtime
+- Any destructive command or force flags
 
-### Tier 2: Requires explicit approval every time
+Tier B workflow (standing):
+1) Before making any Tier B edits, show a compact diff preview:
+   - List each file to be changed
+   - For each file, show only the changed lines with 2 to 5 lines of surrounding context
+   - Provide a short, plain-English summary of what each change does
+2) Group all related Tier B changes into a single batch whenever possible.
+3) Do not apply Tier B edits until I explicitly approve the batch after seeing the diff preview.
+4) After I approve a Tier B batch, apply all edits in that batch, then stop.
 
-**Git operations:**
-- `git commit`, `git push`, `git checkout`, `git reset`, `git rebase`, `git merge`
+Cursor approval reality (standing)
 
-**File operations:**
-- Creating, editing, deleting, or renaming any file
+Cursor’s mode controls approval prompts, not just our autonomy tiers.
 
-**Dependency operations:**
-- `npm install`, `npm ci`, `npm update`, `npm uninstall`
-- `uv sync`, `uv pip install`, any dependency install or update
-
-**Config and credentials:**
-- Modifying `.env`, `settings.json`, or any config file
-- Any command that touches network or credentials
-
-**Destructive commands:**
-- Anything with `--force`, `--hard`, `-D`, `rm`, `del`, `Remove-Item`
-
-### Plan mode workflow
-
-1. Before any feature or multi-file change, enter Plan mode.
-2. Explore the codebase (read-only) and draft a plan.
-3. Present the plan for approval before writing any code.
-4. After approval, summarize each file change before applying.
-
-### Change summary format
-
-Before editing any file, Claude outputs:
-
-```
-FILE: <relative path>
-ACTION: edit | create | delete
-SUMMARY: <1-2 sentence description of what changes and why>
-LINES AFFECTED: ~N lines changed
-```
-
-### Approval checklist (before applying changes)
-
-- [ ] Plan was reviewed and approved
-- [ ] Each file change was summarized and approved
-- [ ] No destructive git commands included
-- [ ] No config or secret files modified without explicit ask
-- [ ] No dependencies installed or changed without explicit ask
-- [ ] Backend tested with: `uv run python -m backend.main` (project root terminal)
-- [ ] Frontend tested with: `npm run dev` (frontend folder terminal)
-
-### Terminal guidance
-
-- Default to PowerShell-compatible commands (not bash).
-- Do not use bash-only constructs (`/dev/null`, `&&` chains, `|` pipes with Unix tools) unless Warren explicitly says he is in a bash terminal.
-- Label which terminal to run commands in:
-  - **Project root terminal:** for backend, git, and general commands
-  - **Frontend terminal:** for npm commands, run from `frontend/`
-- Backend start: `uv run python -m backend.main` (project root terminal)
-- Frontend start: `npm run dev` (frontend terminal)
-- Never use `cd backend; python main.py` (breaks relative imports)
+- Ask Before Edits mode will always trigger per-file approval dialogs, even for Tier A items.
+- To maximize efficiency while keeping threshold security:
+  1) Use Ask Before Edits for investigation and for Tier B diff previews.
+  2) Claude must show a Tier B batch diff first.
+  3) After I approve the batch, switch to Edit Automatically to apply the whole approved batch without repeated dialogs.
+  4) After the batch is applied, switch back to Ask Before Edits.

@@ -1,6 +1,5 @@
 """FastAPI backend for LLM Council."""
 
-
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -15,12 +14,27 @@ import pathlib
 
 from .conversation import ConversationManager
 
-conversation_manager = ConversationManager(max_turns=12)
+conversation_managers: dict[str, ConversationManager] = {}
 
 from . import storage
-from .council import generate_conversation_title, generate_search_query, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings, PROVIDERS
+from .council import (
+    generate_conversation_title,
+    generate_search_query,
+    stage1_collect_responses,
+    stage2_collect_rankings,
+    stage3_synthesize_final,
+    calculate_aggregate_rankings,
+    PROVIDERS,
+)
 from .search import perform_web_search, SearchProvider
-from .settings import get_settings, update_settings, Settings, DEFAULT_COUNCIL_MODELS, DEFAULT_CHAIRMAN_MODEL, AVAILABLE_MODELS
+from .settings import (
+    get_settings,
+    update_settings,
+    Settings,
+    DEFAULT_COUNCIL_MODELS,
+    DEFAULT_CHAIRMAN_MODEL,
+    AVAILABLE_MODELS,
+)
 
 app = FastAPI(title="LLM Council Plus API")
 
@@ -37,11 +51,13 @@ app.add_middleware(
 
 class CreateConversationRequest(BaseModel):
     """Request to create a new conversation."""
+
     pass
 
 
 class SendMessageRequest(BaseModel):
     """Request to send a message in a conversation."""
+
     content: str
     web_search: bool = False
     execution_mode: str = "full"  # 'chat_only', 'chat_ranking', 'full'
@@ -49,6 +65,7 @@ class SendMessageRequest(BaseModel):
 
 class ConversationMetadata(BaseModel):
     """Conversation metadata for list view."""
+
     id: str
     created_at: str
     title: str
@@ -57,6 +74,7 @@ class ConversationMetadata(BaseModel):
 
 class Conversation(BaseModel):
     """Full conversation with all messages."""
+
     id: str
     created_at: str
     title: str
@@ -98,7 +116,9 @@ async def delete_conversation(conversation_id: str):
     deleted = storage.delete_conversation(conversation_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Conversation not found")
+    conversation_managers.pop(conversation_id, None)
     return {"status": "deleted"}
+
 
 # ---- Document upload ----
 
@@ -107,10 +127,7 @@ UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 
 
 @app.post("/api/conversations/{conversation_id}/documents")
-async def upload_documents(
-    conversation_id: str,
-    files: List[UploadFile] = File(...)
-):
+async def upload_documents(conversation_id: str, files: List[UploadFile] = File(...)):
     # Create per-conversation directory
     conv_dir = UPLOAD_ROOT / conversation_id
     conv_dir.mkdir(parents=True, exist_ok=True)
@@ -137,24 +154,28 @@ async def list_documents(conversation_id: str):
     files = []
     for path in conv_dir.iterdir():
         if path.is_file():
-            files.append({
-                "filename": path.name,
-                "size": path.stat().st_size,
-            })
+            files.append(
+                {
+                    "filename": path.name,
+                    "size": path.stat().st_size,
+                }
+            )
     return {"files": files}
 
 
 @app.post("/api/conversations/{conversation_id}/message/stream")
-async def send_message_stream(conversation_id: str, body: SendMessageRequest, request: Request):
+async def send_message_stream(
+    conversation_id: str, body: SendMessageRequest, request: Request
+):
     """Send a message and stream the 3-stage council process."""
     # Validate execution_mode
     valid_modes = ["chat_only", "chat_ranking", "full"]
     if body.execution_mode not in valid_modes:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid execution_mode. Must be one of: {valid_modes}"
+            detail=f"Invalid execution_mode. Must be one of: {valid_modes}",
         )
-    
+
     # Check if conversation exists
     conversation = storage.get_conversation(conversation_id)
     if conversation is None:
@@ -171,7 +192,7 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
             stage3_result = None
             label_to_model = {}
             aggregate_rankings = {}
-            
+
             # uploaded documents for this conversation
             documents_context = ""
             uploads_root = pathlib.Path("data") / "uploads" / conversation_id
@@ -188,21 +209,24 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
                 if doc_texts:
                     documents_context = "\n\n".join(doc_texts)
 
-
             # Add user message
             storage.add_user_message(conversation_id, body.content)
 
-            # Record turn in conversation memory
-            conversation_manager.add_turn("user", body.content)
+            # Record turn in conversation memory (scoped per conversation)
+            mgr = conversation_managers.setdefault(
+                conversation_id, ConversationManager(max_turns=12)
+            )
+            mgr.add_turn("user", body.content)
 
             # Build context text (summary + recent turns)
-            context_text = conversation_manager.get_context_text()
-
+            context_text = mgr.get_context_text()
 
             # Start title generation in parallel (don't await yet)
             title_task = None
             if is_first_message:
-                title_task = asyncio.create_task(generate_conversation_title(body.content))
+                title_task = asyncio.create_task(
+                    generate_conversation_title(body.content)
+                )
 
             # Perform web search if requested
             search_context = ""
@@ -239,11 +263,11 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
 
                 # Run search (now fully async for Tavily/Brave, threaded only for DuckDuckGo)
                 search_result = await perform_web_search(
-                    search_query, 
-                    5, 
-                    provider, 
+                    search_query,
+                    5,
+                    provider,
                     settings.full_content_results,
-                    settings.search_keyword_extraction
+                    settings.search_keyword_extraction,
                 )
                 search_context = search_result["results"]
                 extracted_query = search_result["extracted_query"]
@@ -278,12 +302,16 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
                 stage1_input = (
                     "You are continuing a multi-turn conversation with access to prior context and uploaded documents.\n\n"
                     f"{combined_context}\n\n"
+                    "If the conversation context block is empty, do not claim the user previously asked anything. "
+                    "Do not refer to prior messages unless they appear in the provided conversation context.\n\n"
                     f"New user message: {body.content}"
                 )
             else:
                 stage1_input = body.content
 
-            async for item in stage1_collect_responses(stage1_input, search_context, request):
+            async for item in stage1_collect_responses(
+                stage1_input, search_context, request
+            ):
 
                 if isinstance(item, int):
                     total_models = item
@@ -298,39 +326,42 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
             yield f"data: {json.dumps({'type': 'stage1_complete', 'data': stage1_results})}\n\n"
             await asyncio.sleep(0.05)
 
-
-
-
             # Check if any models responded successfully in Stage 1
-            if not any(r for r in stage1_results if not r.get('error')):
-                error_msg = 'All models failed to respond in Stage 1, likely due to rate limits or API errors. Please try again or adjust your model selection.'
+            if not any(r for r in stage1_results if not r.get("error")):
+                error_msg = "All models failed to respond in Stage 1, likely due to rate limits or API errors. Please try again or adjust your model selection."
                 storage.add_error_message(conversation_id, error_msg)
                 yield f"data: {json.dumps({'type': 'error', 'message': error_msg})}\n\n"
-                return # Stop further processing
+                return  # Stop further processing
 
             # Stage 2: Only if mode is 'chat_ranking' or 'full'
             if body.execution_mode in ["chat_ranking", "full"]:
                 yield f"data: {json.dumps({'type': 'stage2_start'})}\n\n"
                 await asyncio.sleep(0.05)
-                
+
                 # Iterate over the async generator
-                async for item in stage2_collect_rankings(body.content, stage1_results, search_context, request):
+                async for item in stage2_collect_rankings(
+                    body.content, stage1_results, search_context, request
+                ):
                     # First item is the label mapping
-                    if isinstance(item, dict) and not item.get('model'):
+                    if isinstance(item, dict) and not item.get("model"):
                         label_to_model = item
                         # Send init event with total count
                         yield f"data: {json.dumps({'type': 'stage2_init', 'total': len(label_to_model)})}\n\n"
                         continue
-                    
+
                     # Subsequent items are results
                     stage2_results.append(item)
-                    
+
                     # Send progress update
-                    print(f"Stage 2 Progress: {len(stage2_results)}/{len(label_to_model)} - {item['model']}")
+                    print(
+                        f"Stage 2 Progress: {len(stage2_results)}/{len(label_to_model)} - {item['model']}"
+                    )
                     yield f"data: {json.dumps({'type': 'stage2_progress', 'data': item, 'count': len(stage2_results), 'total': len(label_to_model)})}\n\n"
                     await asyncio.sleep(0.01)
 
-                aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
+                aggregate_rankings = calculate_aggregate_rankings(
+                    stage2_results, label_to_model
+                )
                 yield f"data: {json.dumps({'type': 'stage2_complete', 'data': stage2_results, 'metadata': {'label_to_model': label_to_model, 'aggregate_rankings': aggregate_rankings, 'search_query': search_query, 'search_context': search_context}})}\n\n"
                 await asyncio.sleep(0.05)
 
@@ -344,7 +375,13 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
                     print("Client disconnected before Stage 3")
                     raise asyncio.CancelledError("Client disconnected")
 
-                stage3_result = await stage3_synthesize_final(body.content, stage1_results, stage2_results, search_context, documents_context)
+                stage3_result = await stage3_synthesize_final(
+                    body.content,
+                    stage1_results,
+                    stage2_results,
+                    search_context,
+                    documents_context,
+                )
                 yield f"data: {json.dumps({'type': 'stage3_complete', 'data': stage3_result})}\n\n"
 
             # Wait for title generation if it was started
@@ -360,12 +397,12 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
             metadata = {
                 "execution_mode": body.execution_mode,  # Save mode for historical context
             }
-            
+
             # Only include stage2/stage3 metadata if they were executed
             if body.execution_mode in ["chat_ranking", "full"]:
                 metadata["label_to_model"] = label_to_model
                 metadata["aggregate_rankings"] = aggregate_rankings
-            
+
             if search_context:
                 metadata["search_context"] = search_context
             if search_query:
@@ -374,16 +411,26 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
             storage.add_assistant_message(
                 conversation_id,
                 stage1_results,
-                stage2_results if body.execution_mode in ["chat_ranking", "full"] else None,
+                (
+                    stage2_results
+                    if body.execution_mode in ["chat_ranking", "full"]
+                    else None
+                ),
                 stage3_result if body.execution_mode == "full" else None,
-                metadata
+                metadata,
             )
 
             # Build a simple final answer string for memory
             final_answer_text = ""
 
-            if body.execution_mode == "full" and stage3_result and isinstance(stage3_result, dict):
-                final_answer_text = stage3_result.get("final_answer") or stage3_result.get("content", "")
+            if (
+                body.execution_mode == "full"
+                and stage3_result
+                and isinstance(stage3_result, dict)
+            ):
+                final_answer_text = stage3_result.get(
+                    "final_answer"
+                ) or stage3_result.get("content", "")
             elif stage1_results:
                 # Fallback: use the first stage1 answer_TEXT field if present
                 first = stage1_results[0]
@@ -391,8 +438,7 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
                     final_answer_text = first.get("answer") or first.get("content", "")
 
             if final_answer_text:
-                conversation_manager.add_turn("assistant", final_answer_text)
-
+                mgr.add_turn("assistant", final_answer_text)
 
             # Send completion event
             yield f"data: {json.dumps({'type': 'complete'})}\n\n"
@@ -422,12 +468,13 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-        }
+        },
     )
 
 
 class UpdateSettingsRequest(BaseModel):
     """Request to update settings."""
+
     search_provider: Optional[str] = None
     search_keyword_extraction: Optional[str] = None
     ollama_base_url: Optional[str] = None
@@ -456,7 +503,7 @@ class UpdateSettingsRequest(BaseModel):
     # Council Configuration (unified)
     council_models: Optional[List[str]] = None
     chairman_model: Optional[str] = None
-    
+
     # Remote/Local filters
     council_member_filters: Optional[Dict[int, str]] = None
     chairman_filter: Optional[str] = None
@@ -476,9 +523,9 @@ class UpdateSettingsRequest(BaseModel):
     stage3_prompt: Optional[str] = None
 
 
-
 class TestTavilyRequest(BaseModel):
     """Request to test Tavily API key."""
+
     api_key: str | None = None
 
 
@@ -491,12 +538,10 @@ async def get_app_settings():
         "search_keyword_extraction": settings.search_keyword_extraction,
         "ollama_base_url": settings.ollama_base_url,
         "full_content_results": settings.full_content_results,
-
         # Custom Endpoint
         "custom_endpoint_name": settings.custom_endpoint_name,
         "custom_endpoint_url": settings.custom_endpoint_url,
         # Don't send the API key to frontend for security
-
         # API Key Status
         "tavily_api_key_set": bool(settings.tavily_api_key),
         "brave_api_key_set": bool(settings.brave_api_key),
@@ -508,32 +553,26 @@ async def get_app_settings():
         "deepseek_api_key_set": bool(settings.deepseek_api_key),
         "groq_api_key_set": bool(settings.groq_api_key),
         "custom_endpoint_api_key_set": bool(settings.custom_endpoint_api_key),
-
         # Enabled Providers
         "enabled_providers": settings.enabled_providers,
         "direct_provider_toggles": settings.direct_provider_toggles,
-
         # Council Configuration (unified)
         "council_models": settings.council_models,
         "chairman_model": settings.chairman_model,
-        
         # Remote/Local filters
         "council_member_filters": settings.council_member_filters,
         "council_member_filters": settings.council_member_filters,
         "chairman_filter": settings.chairman_filter,
         "search_query_filter": settings.search_query_filter,
-
         # Temperature Settings
         "council_temperature": settings.council_temperature,
         "chairman_temperature": settings.chairman_temperature,
         "stage2_temperature": settings.stage2_temperature,
-
         # Prompts
         "stage1_prompt": settings.stage1_prompt,
         "stage2_prompt": settings.stage2_prompt,
         "stage3_prompt": settings.stage3_prompt,
     }
-
 
 
 @app.get("/api/settings/defaults")
@@ -543,9 +582,10 @@ async def get_default_settings():
         STAGE1_PROMPT_DEFAULT,
         STAGE2_PROMPT_DEFAULT,
         STAGE3_PROMPT_DEFAULT,
-        TITLE_PROMPT_DEFAULT
+        TITLE_PROMPT_DEFAULT,
     )
     from .settings import DEFAULT_ENABLED_PROVIDERS
+
     return {
         "council_models": DEFAULT_COUNCIL_MODELS,
         "chairman_model": DEFAULT_CHAIRMAN_MODEL,
@@ -569,14 +609,14 @@ async def update_app_settings(request: UpdateSettingsRequest):
         except ValueError:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid search provider. Must be one of: {[p.value for p in SearchProvider]}"
+                detail=f"Invalid search provider. Must be one of: {[p.value for p in SearchProvider]}",
             )
 
     if request.search_keyword_extraction is not None:
         if request.search_keyword_extraction not in ["direct", "yake"]:
-             raise HTTPException(
+            raise HTTPException(
                 status_code=400,
-                detail="Invalid keyword extraction mode. Must be 'direct' or 'yake'"
+                detail="Invalid keyword extraction mode. Must be 'direct' or 'yake'",
             )
         updates["search_keyword_extraction"] = request.search_keyword_extraction
 
@@ -595,8 +635,7 @@ async def update_app_settings(request: UpdateSettingsRequest):
         # Validate range
         if request.full_content_results < 0 or request.full_content_results > 10:
             raise HTTPException(
-                status_code=400,
-                detail="full_content_results must be between 0 and 10"
+                status_code=400, detail="full_content_results must be between 0 and 10"
             )
         updates["full_content_results"] = request.full_content_results
 
@@ -622,7 +661,7 @@ async def update_app_settings(request: UpdateSettingsRequest):
 
     if request.openrouter_api_key is not None:
         updates["openrouter_api_key"] = request.openrouter_api_key
-        
+
     # Direct Provider Keys
     if request.openai_api_key is not None:
         updates["openai_api_key"] = request.openai_api_key
@@ -649,19 +688,17 @@ async def update_app_settings(request: UpdateSettingsRequest):
         # Validate that at least two models are selected
         if len(request.council_models) < 2:
             raise HTTPException(
-                status_code=400,
-                detail="At least two council models must be selected"
+                status_code=400, detail="At least two council models must be selected"
             )
         if len(request.council_models) > 8:
             raise HTTPException(
-                status_code=400,
-                detail="Maximum of 8 council models allowed"
+                status_code=400, detail="Maximum of 8 council models allowed"
             )
         updates["council_models"] = request.council_models
 
     if request.chairman_model is not None:
         updates["chairman_model"] = request.chairman_model
-        
+
     # Remote/Local filters
     if request.council_member_filters is not None:
         updates["council_member_filters"] = request.council_member_filters
@@ -684,7 +721,7 @@ async def update_app_settings(request: UpdateSettingsRequest):
         if request.execution_mode not in valid_modes:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid execution_mode. Must be one of: {valid_modes}"
+                detail=f"Invalid execution_mode. Must be one of: {valid_modes}",
             )
         updates["execution_mode"] = request.execution_mode
 
@@ -698,11 +735,9 @@ async def update_app_settings(request: UpdateSettingsRequest):
         "search_keyword_extraction": settings.search_keyword_extraction,
         "ollama_base_url": settings.ollama_base_url,
         "full_content_results": settings.full_content_results,
-
         # Custom Endpoint
         "custom_endpoint_name": settings.custom_endpoint_name,
         "custom_endpoint_url": settings.custom_endpoint_url,
-
         # API Key Status
         "tavily_api_key_set": bool(settings.tavily_api_key),
         "brave_api_key_set": bool(settings.brave_api_key),
@@ -714,19 +749,15 @@ async def update_app_settings(request: UpdateSettingsRequest):
         "deepseek_api_key_set": bool(settings.deepseek_api_key),
         "groq_api_key_set": bool(settings.groq_api_key),
         "custom_endpoint_api_key_set": bool(settings.custom_endpoint_api_key),
-
         # Enabled Providers
         "enabled_providers": settings.enabled_providers,
         "direct_provider_toggles": settings.direct_provider_toggles,
-
         # Council Configuration (unified)
         "council_models": settings.council_models,
         "chairman_model": settings.chairman_model,
-
         # Remote/Local filters
         "council_member_filters": settings.council_member_filters,
         "chairman_filter": settings.chairman_filter,
-
         # Prompts
         "stage1_prompt": settings.stage1_prompt,
         "stage2_prompt": settings.stage2_prompt,
@@ -738,12 +769,12 @@ async def update_app_settings(request: UpdateSettingsRequest):
 async def get_models():
     """Get available models for council selection."""
     from .openrouter import fetch_models
-    
+
     # Try dynamic fetch first
     dynamic_models = await fetch_models()
     if dynamic_models:
         return {"models": dynamic_models}
-        
+
     # Fallback to static list
     return {"models": AVAILABLE_MODELS}
 
@@ -752,20 +783,20 @@ async def get_models():
 async def get_direct_models():
     """Get available models from all configured direct providers."""
     all_models = []
-    
+
     # Iterate over all providers
     for provider_id, provider in PROVIDERS.items():
         # Skip OpenRouter and Ollama as they are handled separately
         if provider_id in ["openrouter", "ollama", "hybrid"]:
             continue
-            
+
         try:
             # Fetch models from provider
             models = await provider.get_models()
             all_models.extend(models)
         except Exception as e:
             print(f"Error fetching models for {provider_id}: {e}")
-            
+
     return all_models
 
 
@@ -773,6 +804,7 @@ async def get_direct_models():
 async def test_tavily_api(request: TestTavilyRequest):
     """Test Tavily API key with a simple search."""
     import httpx
+
     settings = get_settings()
 
     try:
@@ -792,7 +824,10 @@ async def test_tavily_api(request: TestTavilyRequest):
             elif response.status_code == 401:
                 return {"success": False, "message": "Invalid API key"}
             else:
-                return {"success": False, "message": f"API error: {response.status_code}"}
+                return {
+                    "success": False,
+                    "message": f"API error: {response.status_code}",
+                }
 
     except httpx.TimeoutException:
         return {"success": False, "message": "Request timed out"}
@@ -802,6 +837,7 @@ async def test_tavily_api(request: TestTavilyRequest):
 
 class TestBraveRequest(BaseModel):
     """Request to test Brave API key."""
+
     api_key: str | None = None
 
 
@@ -809,6 +845,7 @@ class TestBraveRequest(BaseModel):
 async def test_brave_api(request: TestBraveRequest):
     """Test Brave API key with a simple search."""
     import httpx
+
     settings = get_settings()
 
     try:
@@ -828,7 +865,10 @@ async def test_brave_api(request: TestBraveRequest):
             elif response.status_code == 401 or response.status_code == 403:
                 return {"success": False, "message": "Invalid API key"}
             else:
-                return {"success": False, "message": f"API error: {response.status_code}"}
+                return {
+                    "success": False,
+                    "message": f"API error: {response.status_code}",
+                }
 
     except httpx.TimeoutException:
         return {"success": False, "message": "Request timed out"}
@@ -838,11 +878,13 @@ async def test_brave_api(request: TestBraveRequest):
 
 class TestOpenRouterRequest(BaseModel):
     """Request to test OpenRouter API key."""
+
     api_key: Optional[str] = None
 
 
 class TestProviderRequest(BaseModel):
     """Request to test a specific provider's API key."""
+
     provider_id: str
     api_key: str
 
@@ -852,10 +894,10 @@ async def test_provider_api(request: TestProviderRequest):
     """Test an API key for a specific provider."""
     from .council import PROVIDERS
     from .settings import get_settings
-    
+
     if request.provider_id not in PROVIDERS:
         raise HTTPException(status_code=400, detail="Invalid provider ID")
-        
+
     api_key = request.api_key
     if not api_key:
         # Try to get from settings
@@ -863,10 +905,10 @@ async def test_provider_api(request: TestProviderRequest):
         # Map provider_id to setting key (e.g. 'openai' -> 'openai_api_key')
         setting_key = f"{request.provider_id}_api_key"
         if hasattr(settings, setting_key):
-             api_key = getattr(settings, setting_key)
-    
+            api_key = getattr(settings, setting_key)
+
     if not api_key:
-         return {"success": False, "message": "No API key provided or configured"}
+        return {"success": False, "message": "No API key provided or configured"}
 
     provider = PROVIDERS[request.provider_id]
     return await provider.validate_key(api_key)
@@ -874,6 +916,7 @@ async def test_provider_api(request: TestProviderRequest):
 
 class TestOllamaRequest(BaseModel):
     """Request to test Ollama connection."""
+
     base_url: str
 
 
@@ -882,36 +925,41 @@ async def get_ollama_tags(base_url: Optional[str] = None):
     """Fetch available models from Ollama."""
     import httpx
     from .config import get_ollama_base_url
-    
+
     if not base_url:
         base_url = get_ollama_base_url()
-        
-    if base_url.endswith('/'):
+
+    if base_url.endswith("/"):
         base_url = base_url[:-1]
-        
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(f"{base_url}/api/tags")
-            
+
             if response.status_code != 200:
-                return {"models": [], "error": f"Ollama API error: {response.status_code}"}
-                
+                return {
+                    "models": [],
+                    "error": f"Ollama API error: {response.status_code}",
+                }
+
             data = response.json()
             models = []
             for model in data.get("models", []):
-                models.append({
-                    "id": model.get("name"),
-                    "name": model.get("name"),
-                    # Ollama doesn't return context length in tags
-                    "context_length": None,
-                    "is_free": True,
-                    "modified_at": model.get("modified_at")
-                })
-                
+                models.append(
+                    {
+                        "id": model.get("name"),
+                        "name": model.get("name"),
+                        # Ollama doesn't return context length in tags
+                        "context_length": None,
+                        "is_free": True,
+                        "modified_at": model.get("modified_at"),
+                    }
+                )
+
             # Sort by modified_at (newest first), fallback to name
             models.sort(key=lambda x: x.get("modified_at", ""), reverse=True)
             return {"models": models}
-            
+
     except httpx.ConnectError:
         return {"models": [], "error": "Could not connect to Ollama. Is it running?"}
     except Exception as e:
@@ -922,28 +970,35 @@ async def get_ollama_tags(base_url: Optional[str] = None):
 async def test_ollama_connection(request: TestOllamaRequest):
     """Test connection to Ollama instance."""
     import httpx
-    
+
     base_url = request.base_url
-    if base_url.endswith('/'):
+    if base_url.endswith("/"):
         base_url = base_url[:-1]
-        
+
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get(f"{base_url}/api/tags")
-            
+
             if response.status_code == 200:
                 return {"success": True, "message": "Successfully connected to Ollama"}
             else:
-                return {"success": False, "message": f"Ollama API error: {response.status_code}"}
-                
+                return {
+                    "success": False,
+                    "message": f"Ollama API error: {response.status_code}",
+                }
+
     except httpx.ConnectError:
-        return {"success": False, "message": "Could not connect to Ollama. Is it running at this URL?"}
+        return {
+            "success": False,
+            "message": "Could not connect to Ollama. Is it running at this URL?",
+        }
     except Exception as e:
         return {"success": False, "message": str(e)}
 
 
 class TestCustomEndpointRequest(BaseModel):
     """Request to test custom OpenAI-compatible endpoint."""
+
     name: str
     url: str
     api_key: Optional[str] = None
@@ -995,18 +1050,29 @@ async def get_openrouter_models():
 
             data = response.json()
             models = []
-            
+
             # Comprehensive exclusion list for non-text/chat models
             excluded_terms = [
-                "embed", "audio", "whisper", "tts", "dall-e", "realtime", 
-                "vision-only", "voxtral", "speech", "transcribe", "sora"
+                "embed",
+                "audio",
+                "whisper",
+                "tts",
+                "dall-e",
+                "realtime",
+                "vision-only",
+                "voxtral",
+                "speech",
+                "transcribe",
+                "sora",
             ]
 
             for model in data.get("data", []):
                 mid = model.get("id", "").lower()
                 name_lower = model.get("name", "").lower()
-                
-                if any(term in mid for term in excluded_terms) or any(term in name_lower for term in excluded_terms):
+
+                if any(term in mid for term in excluded_terms) or any(
+                    term in name_lower for term in excluded_terms
+                ):
                     continue
 
                 # Extract pricing - free models have 0 cost
@@ -1015,13 +1081,15 @@ async def get_openrouter_models():
                 completion_price = float(pricing.get("completion", "0") or "0")
                 is_free = prompt_price == 0 and completion_price == 0
 
-                models.append({
-                    "id": f"openrouter:{model.get('id')}",
-                    "name": f"{model.get('name', model.get('id'))} [OpenRouter]",
-                    "provider": "OpenRouter",
-                    "context_length": model.get("context_length"),
-                    "is_free": is_free,
-                })
+                models.append(
+                    {
+                        "id": f"openrouter:{model.get('id')}",
+                        "name": f"{model.get('name', model.get('id'))} [OpenRouter]",
+                        "provider": "OpenRouter",
+                        "context_length": model.get("context_length"),
+                        "is_free": is_free,
+                    }
+                )
 
             # Sort by name
             models.sort(key=lambda x: x["name"].lower())
@@ -1041,7 +1109,7 @@ async def test_openrouter_api(request: TestOpenRouterRequest):
 
     # Use provided key or fall back to saved key
     api_key = request.api_key if request.api_key else get_openrouter_api_key()
-    
+
     if not api_key:
         return {"success": False, "message": "No API key provided or configured"}
 
@@ -1059,7 +1127,10 @@ async def test_openrouter_api(request: TestOpenRouterRequest):
             elif response.status_code == 401:
                 return {"success": False, "message": "Invalid API key"}
             else:
-                return {"success": False, "message": f"API error: {response.status_code}"}
+                return {
+                    "success": False,
+                    "message": f"API error: {response.status_code}",
+                }
 
     except httpx.TimeoutException:
         return {"success": False, "message": "Request timed out"}
@@ -1069,4 +1140,5 @@ async def test_openrouter_api(request: TestOpenRouterRequest):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8001)

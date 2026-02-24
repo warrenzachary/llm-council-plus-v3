@@ -58,3 +58,80 @@ Format: Append-only. Each entry records one logically grouped change or decision
 - Ran: uv sync; backend started OK; frontend started OK.
 - Next: browser E2E upload test (pdf/pptx/xlsx) + verify file bar + summaries.
 
+---
+
+## 2026-02-18 -- Branch: cc/autonomous-20260217
+
+### Entry 6 | Diagnostic: doc_loader extraction test
+- **Commit:** None (read-only diagnostic)
+- **Files touched:** None
+- **Command:** `uv run python -c "..."` calling `backend.doc_loader.extract_text` on each file in `data/uploads/52f88d8c-...`
+- **Results:**
+  | File | Type | Chars extracted |
+  |------|------|-----------------|
+  | Pilates Consumer Snapshot vwzm_2.pptx | PPTX | 2,393 |
+  | Pilates Instructor Questionnaire (Responses).xlsx | XLSX | 50,000 (hit cap) |
+  | Pilates Response to HL vF.pdf | PDF | 7,943 |
+  | Prep Team.docx | DOCX | 1,003 |
+- **Outcome:** All four extractors (pypdf, python-pptx, openpyxl, python-docx) working. No errors. XLSX truncation cap functioning correctly.
+- **Follow-up:** Proceed with browser E2E test (upload + council summarization).
+### Entry 7 | E2E validation: Stage 3 Chairman sees uploaded docs
+- **Commit:** None (runtime validation)
+- **Files touched:** None
+- **Config:** Chairman=openai/gpt-4.1; Council=anthropic/claude-opus-4.1, x-ai/grok-4, google/gemini-2.5-pro, openai/o4-mini
+- **Test prompt:** "List the filenames you see attached to this conversation, and for each one, give one sentence on what it is about."
+- **Observed filenames returned by Chairman:**
+  - Pilates Consumer Snapshot vwzm_2.pptx
+  - Pilates Instructor Questionnaire (Responses).xlsx
+  - Pilates Response to HL vF.pdf
+  - Prep Team.docx
+- **Outcome:** PASS. Chairman correctly listed attached filenames and summarized each. No "no files attached" behavior observed.
+- **Follow-up:** Add minimal safe logging of documents_context length at Stage 3 call only if this issue reappears.
+- **Regression retest:** New conversation + single PDF upload (full mode). Chairman listed exactly 1 filename: "Pilates Response to HL vF.pdf". PASS.
+---
+
+## 2026-02-19 -- Branch: cc/autonomous-20260217
+
+### Entry 8 (Warren) | Black formatter setup
+- Installed Black in project venv (.venv) for consistent Python formatting.
+- Set per-folder Cursor settings to use Black as the default Python formatter and enable format on save.
+- Formatting initially failed due to an indentation error in backend/conversation.py (IndentationError). Fixed indentation, then Black formatting worked.
+
+### Entry 9 | UI: Replace paperclip emoji with labeled "Attach" button
+- **Commit:** None yet (applied by Warren)
+- **Files:** frontend/src/components/ChatInterface.jsx
+- **What:** Replaced the small paperclip emoji (`📎`) upload control with a clearly labeled "Attach" button. Verified visible in UI.
+- **Why:** The emoji-only control was easy to miss for new users. A labeled button improves discoverability for the MVP demo.
+- **Follow-up:** None.
+
+### Entry 10 | Add MVP Demo Checklist to Notes.MD
+- **Commit:** None yet
+- **Files:** Notes.MD
+- **What:** Added section 15 "MVP Demo Checklist" with 10 completed items (core functionality confirmed working) and 5 open items needed before sharing with colleagues. Renumbered Claude Code Operating Procedure to section 14 (unchanged, just shifted down).
+- **Follow-up:** Work through the "Open before sharing" items.
+
+### Entry 11 | CSS fix: increase messages-area bottom padding
+- **Commit:** None yet
+- **Files:** frontend/src/components/ChatInterface.css
+- **What:** Changed `.messages-area` padding-bottom from 120px to 180px (line 145). The floating input capsule (position: absolute, bottom: 30px) is ~140-160px tall with the files bar and mode toggle, so 120px was not enough clearance. 180px ensures the last line of content is visible above the input.
+- **Follow-up:** Verify in browser that chairman response bottom text is no longer obscured.
+
+### Entry 12 | Bug fix: conversation context leak across conversations
+- **Commit:** None yet
+- **Files:** backend/main.py
+- **What:** Replaced module-level singleton `conversation_manager = ConversationManager(max_turns=12)` with a per-conversation dict `conversation_managers: dict[str, ConversationManager] = {}`. The message handler now calls `conversation_managers.setdefault(conversation_id, ConversationManager(max_turns=12))` to get or create the correct manager. The delete endpoint now calls `conversation_managers.pop(conversation_id, None)` to clean up. Four references updated total.
+- **Why:** The singleton accumulated turns from ALL conversations into one shared state. Creating conversation B after conversation A would inject A's context into B's prompts, causing hallucinated cross-talk.
+- **Follow-up:** Browser validation: create conversation A (ask about filenames), create conversation B (ask about Super Bowl), confirm no cross-contamination.
+
+---
+
+## 2026-02-24 -- Branch: cc/autonomous-20260217
+
+### Entry 13 | One-click launcher for non-technical colleague
+- **Commit:** None yet
+- **Files:** SETUP.bat, start_consilium.ps1
+- **What:**
+  - `SETUP.bat`: One-time setup wizard. Checks for Python, Node.js (opens download pages with step-by-step instructions if missing). Installs uv automatically. Runs `uv sync` and `npm install`. Generates `consilium.ico` (green tree, drawn via PowerShell GDI+, no external files needed). Creates `ConsiliumAI.lnk` on the user's desktop pointing to `start_consilium.ps1`.
+  - `start_consilium.ps1`: Silent daily launcher. Checks if backend (port 8001) and frontend (port 5173) are already running. If both up, just opens the browser. If not, starts backend via uv (hidden window), polls localhost:8001 until ready (up to 30s), starts frontend via cmd /c npm run dev (hidden window), waits 5s for Vite, opens browser. Shows a friendly error dialog if the backend fails to start.
+- **Why:** Colleague is non-technical and on a separate machine. Goal is double-click → browser opens, treated like a website.
+- **Follow-up:** Warren to test SETUP.bat on a clean machine or a test account.

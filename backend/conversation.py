@@ -4,7 +4,7 @@ from typing import List
 
 @dataclass
 class Turn:
-    role: str   # "user" or "assistant"
+    role: str  # "user" or "assistant"
     content: str
 
 
@@ -35,7 +35,9 @@ class ConversationManager:
         """
         parts: List[str] = []
         if self.state.summary:
-            parts.append("Conversation summary so far:\n" + self.state.summary.strip() + "\n")
+            parts.append(
+                "Conversation summary so far:\n" + self.state.summary.strip() + "\n"
+            )
 
         if self.state.turns:
             parts.append("Recent conversation:")

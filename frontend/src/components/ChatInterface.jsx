@@ -338,11 +338,11 @@ export default function ChatInterface({
                                 rows={1}
                                 style={{ height: 'auto', minHeight: '24px' }}
                             />
-
-                                                        {/* Upload documents */}
+                            {/* Upload documents */}
                             {!isLoading && (
-                                <label className="upload-button">
-                                    📎
+                                <label className="upload-button" title="Attach files">
+                                    <span className="upload-button-icon" aria-hidden="true">📎</span>
+                                    <span className="upload-button-text">Attach</span>
                                     <input
                                         type="file"
                                         multiple
@@ -380,7 +380,7 @@ export default function ChatInterface({
                                             <span className="uploaded-file-size">
                                                 ({f.size < 1024 ? `${f.size} B`
                                                     : f.size < 1048576 ? `${(f.size / 1024).toFixed(0)} KB`
-                                                    : `${(f.size / 1048576).toFixed(1)} MB`})
+                                                        : `${(f.size / 1048576).toFixed(1)} MB`})
                                             </span>
                                             {i < uploadedFiles.length - 1 && <span className="uploaded-file-sep"> · </span>}
                                         </span>
