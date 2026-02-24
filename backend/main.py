@@ -163,6 +163,79 @@ async def list_documents(conversation_id: str):
     return {"files": files}
 
 
+class FeedbackRequest(BaseModel):
+    """Request to submit a bug report or feature request."""
+
+    type: str  # "bug" or "feature"
+    description: str
+    context: Dict[str, Any] = {}
+
+
+@app.post("/api/feedback")
+async def submit_feedback(body: FeedbackRequest):
+    """Create a GitHub issue for a bug report or feature request."""
+    import httpx
+
+    settings = get_settings()
+    if not settings.github_feedback_token or not settings.github_feedback_repo:
+        raise HTTPException(
+            status_code=400,
+            detail="Feedback not configured. Ask Warren to add a GitHub token in Settings > Feedback.",
+        )
+
+    label = "bug" if body.type == "bug" else "enhancement"
+    prefix = "Bug Report" if body.type == "bug" else "Feature Request"
+    short = body.description[:80] + ("..." if len(body.description) > 80 else "")
+    title = f"[{prefix}] {short}"
+
+    ctx = body.context
+    mode_labels = {
+        "full": "Full Deliberation",
+        "chat_ranking": "Chat + Ranking",
+        "chat_only": "Chat Only",
+    }
+    council = ", ".join(ctx.get("council_models", [])) or "None"
+    mode = mode_labels.get(ctx.get("execution_mode", ""), ctx.get("execution_mode", "Unknown"))
+
+    body_md = f"""## {prefix}
+
+{body.description}
+
+---
+
+## Context
+
+| Field | Value |
+|-------|-------|
+| Execution Mode | {mode} |
+| Chairman | {ctx.get("chairman_model", "Not set")} |
+| Council Models | {council} |
+| Search Provider | {ctx.get("search_provider", "Unknown")} |
+| Conversation ID | `{ctx.get("conversation_id", "None")}` |
+| Submitted | {ctx.get("timestamp", "Unknown")} |
+"""
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            f"https://api.github.com/repos/{settings.github_feedback_repo}/issues",
+            headers={
+                "Authorization": f"token {settings.github_feedback_token}",
+                "Accept": "application/vnd.github.v3+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+            json={"title": title, "body": body_md, "labels": [label]},
+        )
+
+    if response.status_code != 201:
+        raise HTTPException(
+            status_code=502,
+            detail=f"GitHub API error ({response.status_code}). Check your token and repo in Settings > Feedback.",
+        )
+
+    issue = response.json()
+    return {"status": "ok", "issue_url": issue["html_url"], "issue_number": issue["number"]}
+
+
 @app.post("/api/conversations/{conversation_id}/message/stream")
 async def send_message_stream(
     conversation_id: str, body: SendMessageRequest, request: Request
@@ -522,6 +595,9 @@ class UpdateSettingsRequest(BaseModel):
     stage2_prompt: Optional[str] = None
     stage3_prompt: Optional[str] = None
 
+    # Feedback
+    github_feedback_token: Optional[str] = None
+
 
 class TestTavilyRequest(BaseModel):
     """Request to test Tavily API key."""
@@ -572,6 +648,11 @@ async def get_app_settings():
         "stage1_prompt": settings.stage1_prompt,
         "stage2_prompt": settings.stage2_prompt,
         "stage3_prompt": settings.stage3_prompt,
+        # Execution Mode
+        "execution_mode": settings.execution_mode,
+        # Feedback
+        "github_feedback_repo": settings.github_feedback_repo,
+        "github_feedback_token_set": bool(settings.github_feedback_token),
     }
 
 
@@ -715,6 +796,9 @@ async def update_app_settings(request: UpdateSettingsRequest):
     if request.stage2_temperature is not None:
         updates["stage2_temperature"] = request.stage2_temperature
 
+    if request.github_feedback_token is not None:
+        updates["github_feedback_token"] = request.github_feedback_token
+
     # Prompts   # Execution Mode
     if request.execution_mode is not None:
         valid_modes = ["chat_only", "chat_ranking", "full"]
@@ -762,6 +846,9 @@ async def update_app_settings(request: UpdateSettingsRequest):
         "stage1_prompt": settings.stage1_prompt,
         "stage2_prompt": settings.stage2_prompt,
         "stage3_prompt": settings.stage3_prompt,
+        # Feedback
+        "github_feedback_repo": settings.github_feedback_repo,
+        "github_feedback_token_set": bool(settings.github_feedback_token),
     }
 
 

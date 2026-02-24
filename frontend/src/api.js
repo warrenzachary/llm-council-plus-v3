@@ -293,6 +293,22 @@ export const api = {
   },
 
   /**
+   * Submit a bug report or feature request as a GitHub issue.
+   */
+  async submitFeedback(type, description, context) {
+    const response = await fetch(`${API_BASE}/api/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, description, context }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to submit feedback');
+    }
+    return response.json();
+  },
+
+  /**
    * Send a message and receive streaming updates.
    * @param {string} conversationId - The conversation ID
    * @param {Object} options - Message options

@@ -1,0 +1,294 @@
+/* FeedbackModal Styles (Midnight Glass) */
+
+.feedback-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.feedback-modal {
+    background: rgba(15, 23, 42, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    width: 480px;
+    max-width: calc(100vw - 32px);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+
+.feedback-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 0;
+}
+
+.feedback-header h2 {
+    font-family: var(--font-ui);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.feedback-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    line-height: 1;
+    transition: all 0.2s;
+}
+
+.feedback-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+/* Type Toggle */
+.feedback-type-toggle {
+    display: flex;
+    gap: 8px;
+    padding: 16px 24px 0;
+}
+
+.feedback-type-btn {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    padding: 10px;
+    border-radius: 10px;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.feedback-type-btn:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--text-secondary);
+}
+
+.feedback-type-btn.active {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.5);
+    color: #93c5fd;
+}
+
+/* Body */
+.feedback-body {
+    padding: 16px 24px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.feedback-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-family: var(--font-ui);
+}
+
+.feedback-textarea {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 12px 14px;
+    resize: vertical;
+    min-height: 100px;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.feedback-textarea:focus {
+    outline: none;
+    border-color: rgba(59, 130, 246, 0.5);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.feedback-textarea::placeholder {
+    color: var(--text-muted);
+}
+
+/* Context details */
+.feedback-context-details {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.feedback-context-details summary {
+    cursor: pointer;
+    user-select: none;
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    padding: 4px 0;
+    transition: color 0.2s;
+}
+
+.feedback-context-details summary:hover {
+    color: var(--text-secondary);
+}
+
+.feedback-context-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 12px;
+    margin-top: 10px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+}
+
+.ctx-label {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: var(--font-ui);
+    white-space: nowrap;
+    padding: 2px 0;
+}
+
+.ctx-value {
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-family: var(--font-code, monospace);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 2px 0;
+}
+
+/* Error */
+.feedback-error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-family: var(--font-ui);
+}
+
+/* Actions */
+.feedback-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.feedback-cancel {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-muted);
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-family: var(--font-ui);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.feedback-cancel:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+}
+
+.feedback-submit {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    color: white;
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+.feedback-submit:hover:not(:disabled) {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
+}
+
+.feedback-submit:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Success State */
+.feedback-success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 32px 24px;
+    text-align: center;
+}
+
+.feedback-success-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.15);
+    border: 2px solid rgba(16, 185, 129, 0.4);
+    color: #34d399;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.feedback-success p {
+    color: var(--text-secondary);
+    font-size: 15px;
+    margin: 0;
+}
+
+.feedback-issue-link {
+    color: #60a5fa;
+    text-decoration: none;
+    font-size: 14px;
+    font-family: var(--font-ui);
+    transition: color 0.2s;
+}
+
+.feedback-issue-link:hover {
+    color: #93c5fd;
+    text-decoration: underline;
+}
+
+.feedback-done-btn {
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    color: #93c5fd;
+    padding: 10px 28px;
+    border-radius: 10px;
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.feedback-done-btn:hover {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: #3b82f6;
+}

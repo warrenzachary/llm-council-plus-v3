@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import Settings from './components/Settings';
+import FeedbackModal from './components/FeedbackModal';
 import { api } from './api';
 import './App.css';
 
@@ -12,6 +13,8 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsInitialSection, setSettingsInitialSection] = useState('llm_keys');
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackType, setFeedbackType] = useState('bug');
   const [ollamaStatus, setOllamaStatus] = useState({
     connected: false,
     lastConnected: null,
@@ -111,6 +114,11 @@ function App() {
     } catch (error) {
       console.error('Error after closing settings:', error);
     }
+  };
+
+  const handleFeedback = (type) => {
+    setFeedbackType(type);
+    setFeedbackOpen(true);
   };
 
   const handleOpenSettings = (section = 'council') => {
@@ -676,6 +684,7 @@ function App() {
         onOpenSettings={() => setShowSettings(true)}
         isLoading={isLoading}
         onAbort={handleAbort}
+        onFeedback={handleFeedback}
       />
       <ChatInterface
         conversation={currentConversation}
@@ -696,6 +705,18 @@ function App() {
           ollamaStatus={ollamaStatus}
           onRefreshOllama={testOllamaConnection}
           initialSection={settingsInitialSection}
+        />
+      )}
+      {feedbackOpen && (
+        <FeedbackModal
+          initialType={feedbackType}
+          context={{
+            execution_mode: executionMode,
+            chairman_model: chairmanModel,
+            council_models: councilModels,
+            search_provider: searchProvider,
+          }}
+          onClose={() => setFeedbackOpen(false)}
         />
       )}
     </div>

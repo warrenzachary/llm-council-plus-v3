@@ -127,6 +127,19 @@ Format: Append-only. Each entry records one logically grouped change or decision
 
 ## 2026-02-24 -- Branch: cc/autonomous-20260217
 
+### Entry 14 | Feedback feature (Report Bug / Request Feature)
+- **Commit:** None yet
+- **Files:** backend/settings.py, backend/main.py, frontend/src/api.js, frontend/src/components/FeedbackModal.jsx (new), frontend/src/components/FeedbackModal.css (new), frontend/src/components/Sidebar.jsx, frontend/src/components/Sidebar.css, frontend/src/App.jsx, frontend/src/components/Settings.jsx
+- **What:**
+  - Backend: Added `github_feedback_repo` + `github_feedback_token` fields to Settings. Added `POST /api/feedback` endpoint that creates GitHub Issues via the GitHub API. Included context table (mode, models, chairman, search) in issue body.
+  - Frontend api.js: Added `submitFeedback()` method.
+  - FeedbackModal: New modal component with bug/feature type toggle, description textarea, collapsible auto-captured context panel, success state (links to created issue), error display.
+  - Sidebar: Added `🐛 Report Bug` / `✨ Request Feature` footer buttons that open the modal.
+  - App.jsx: Owns `feedbackOpen` / `feedbackType` state, builds context object, renders FeedbackModal.
+  - Settings: Added "Feedback" nav section where Warren can enter his GitHub PAT (save immediately via `api.updateSettings`).
+- **Why:** Gives users a one-click way to file issues directly to GitHub, with context auto-captured. Auditable and triggers GitHub email notifications for Warren.
+- **Follow-up:** Warren needs to create a GitHub PAT with `public_repo` scope and enter it in Settings > Feedback.
+
 ### Entry 13 | One-click launcher for non-technical colleague
 - **Commit:** None yet
 - **Files:** SETUP.bat, start_consilium.ps1

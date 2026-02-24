@@ -1,4 +1,4 @@
-Checkpoint: 2026-02-18. Branch cc/autonomous-20260217. Worklog in WORKLOG_CLAUDE.md.
+Checkpoint: 2026-02-24. Branch cc/autonomous-20260217. Worklog in WORKLOG_CLAUDE.md. MVP checklist complete except visual polish (deferred).
 
 # Consilium (LLM Council customization) Notes.md
 
@@ -277,13 +277,15 @@ Core functionality:
 - [x] Chairman sees uploaded documents (Stage 3 passthrough fix)
 - [x] Uploaded files indicator bar in UI
 - [x] Labeled "Attach" button (replaces hard-to-find paperclip emoji)
+- [x] Feedback: Report Bug / Request Feature -- files GitHub Issues with auto-captured context, verified 2026-02-24
 
 Open before sharing:
 - [x] Fix prompt entry overlap blocking bottom of chairman response -- CSS padding-bottom 180px, browser verified 2026-02-24
 - [x] Graceful per-model error display when a provider fails -- already implemented (Stage1.jsx error badge + message, council.py error passthrough)
-- [ ] Quick visual polish pass (spacing, loading states, empty states)
+- [ ] Quick visual polish pass (spacing, loading states, empty states) -- deferred, not blocking ship
 - [x] Confirm no duplicate model calls -- not a real issue; StrictMode only double-runs effects, not button-click handlers; !isLoading guard prevents double-send
 - [x] Write a short README or onboarding note for a first-time colleague -- SETUP.bat + start_consilium.ps1 (one-click install + desktop launcher)
+- [x] Feedback channel for users -- GitHub Issues via sidebar buttons, token stored locally
 
 ## 14) Claude Code Operating Procedure (Claude Safe Autonomy Canon reference)
 

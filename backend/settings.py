@@ -121,6 +121,10 @@ class Settings(BaseModel):
     # Execution Mode
     execution_mode: str = "full"  # Default execution mode: 'chat_only', 'chat_ranking', 'full'
 
+    # Feedback (GitHub Issues)
+    github_feedback_repo: str = "warrenzachary/llm-council-plus-v3"
+    github_feedback_token: Optional[str] = None
+
 
 def get_settings() -> Settings:
     """Load settings from file, or return defaults."""

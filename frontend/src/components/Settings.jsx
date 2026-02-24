@@ -105,6 +105,12 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [showFreeOnly, setShowFreeOnly] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Feedback / GitHub Settings
+  const [githubFeedbackRepo, setGithubFeedbackRepo] = useState('');
+  const [githubFeedbackToken, setGithubFeedbackToken] = useState('');
+  const [githubFeedbackTokenSet, setGithubFeedbackTokenSet] = useState(false);
+  const [feedbackSaveResult, setFeedbackSaveResult] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -289,6 +295,10 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
         stage3_prompt: data.stage3_prompt || '',
 
       });
+
+      // Feedback Settings
+      if (data.github_feedback_repo) setGithubFeedbackRepo(data.github_feedback_repo);
+      setGithubFeedbackTokenSet(!!data.github_feedback_token_set);
 
       // Clear Direct Keys (for security)
       setDirectKeys({
@@ -1243,6 +1253,12 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
             >
               Backup & Reset
             </button>
+            <button
+              className={`sidebar-nav-item ${activeSection === 'feedback' ? 'active' : ''}`}
+              onClick={() => setActiveSection('feedback')}
+            >
+              Feedback
+            </button>
           </div>
 
           {/* Main Content Area */}
@@ -1422,6 +1438,69 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
                   >
                     Reset to Defaults
                   </button>
+                </div>
+              </section>
+            )}
+
+            {/* FEEDBACK SETTINGS */}
+            {activeSection === 'feedback' && (
+              <section className="settings-section">
+                <h3>Feedback Settings</h3>
+                <p className="section-description">
+                  Bug reports and feature requests are filed as GitHub Issues. Configure your token here so submissions work.
+                </p>
+
+                <div className="subsection">
+                  <label className="subsection-label">GitHub Repository</label>
+                  <input
+                    className="settings-input"
+                    value={githubFeedbackRepo}
+                    readOnly
+                    style={{ opacity: 0.6, cursor: 'default' }}
+                  />
+                  <p className="field-hint">Issues are filed in this repository.</p>
+                </div>
+
+                <div className="subsection">
+                  <label className="subsection-label">
+                    GitHub Personal Access Token
+                    {githubFeedbackTokenSet && <span style={{ color: '#34d399', marginLeft: 8, fontSize: 12 }}>✓ Saved</span>}
+                  </label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      className="settings-input"
+                      type="password"
+                      placeholder={githubFeedbackTokenSet ? '••••••••  (token saved)' : 'ghp_...'}
+                      value={githubFeedbackToken}
+                      onChange={e => { setGithubFeedbackToken(e.target.value); setFeedbackSaveResult(null); }}
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      className="action-btn"
+                      disabled={!githubFeedbackToken}
+                      onClick={async () => {
+                        try {
+                          await api.updateSettings({ github_feedback_token: githubFeedbackToken });
+                          setGithubFeedbackTokenSet(true);
+                          setGithubFeedbackToken('');
+                          setFeedbackSaveResult({ success: true, message: 'Token saved!' });
+                          setTimeout(() => setFeedbackSaveResult(null), 3000);
+                        } catch (err) {
+                          setFeedbackSaveResult({ success: false, message: 'Failed to save token.' });
+                        }
+                      }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                  <p className="field-hint">
+                    Needs <code>public_repo</code> scope. Stored locally, never shared.
+                  </p>
+                  {feedbackSaveResult && (
+                    <div className={feedbackSaveResult.success ? 'test-result success' : 'test-result error'}>
+                      {feedbackSaveResult.message}
+                    </div>
+                  )}
                 </div>
               </section>
             )}

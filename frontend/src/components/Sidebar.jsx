@@ -11,7 +11,8 @@ export default function Sidebar({
   onDeleteConversation,
   onOpenSettings,
   isLoading,
-  onAbort
+  onAbort,
+  onFeedback
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(null);
 
@@ -115,6 +116,15 @@ export default function Sidebar({
             </div>
           ))
         )}
+      </div>
+
+      <div className="sidebar-footer">
+        <button className="feedback-link-btn" onClick={() => onFeedback('bug')}>
+          🐛 Report Bug
+        </button>
+        <button className="feedback-link-btn" onClick={() => onFeedback('feature')}>
+          ✨ Request Feature
+        </button>
       </div>
     </div>
   );
