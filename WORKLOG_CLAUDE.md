@@ -5,6 +5,33 @@ Format: Append-only. Each entry records one logically grouped change or decision
 
 ---
 
+## 2026-02-25 -- Branch: cc/autonomous-20260217
+
+### Entry | Windows Installer (PyInstaller + Inno Setup)
+
+**Goal:** Package ConsiliumAI as a standalone Windows installer so non-technical users can install with one click — no Python, Node.js, or terminal required.
+
+**Changes:**
+- `backend/config.py` — Added `_get_data_base()` / `DATA_BASE`; `DATA_DIR` now resolves to `%APPDATA%\ConsiliumAI\data\conversations` when frozen
+- `backend/settings.py` — Added `_get_settings_file()`; `SETTINGS_FILE` resolves to `%APPDATA%\ConsiliumAI\data\settings.json` when frozen
+- `backend/main.py` — Added static file serving (StaticFiles mount + SPA catch-all); `ensure_data_dirs` startup event creates data dirs on first run; renamed `GET /` health check to `GET /api/health`; added `FileResponse`, `StaticFiles`, `sys`, `Path` imports
+- `launcher.py` (new) — PyInstaller entry point: port-in-use check, 2s delayed browser open, direct `from backend.main import app` import for uvicorn
+- `consilium.spec` (new) — PyInstaller spec; one-folder build; `console=False`; bundles `frontend/dist/` and all backend providers
+- `installer/consilium_setup.iss` (new) — Inno Setup script; per-user install to `%LOCALAPPDATA%\Programs\ConsiliumAI`; desktop shortcut; uninstaller
+- `consilium.ico` — Regenerated as owl (replacing tree icon at user request)
+- `SETUP.bat` — Updated inline PowerShell icon generation from tree to owl
+- `PARTNER_SETUP.md` — Completely rewritten for installer flow; added firewall prompt note; removed SETUP.bat/GitHub instructions
+
+**Output:** `installer/ConsiliumAI_Setup.exe` (~29MB), tested and working on dev machine.
+
+**Key decisions:**
+- Frontend built to static files and served by FastAPI — eliminates Node.js runtime requirement
+- Data written to `%APPDATA%` not install dir (install dir may be read-only)
+- Launcher uses direct import not string ref (string ref breaks in frozen bundle)
+- `uv run pyinstaller` required (not system pyinstaller) to pick up project's Python 3.10 env
+
+---
+
 ## 2026-02-17 -- Branch: cc/autonomous-20260217
 
 ### Entry 1 | council.py bug fix

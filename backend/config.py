@@ -1,6 +1,8 @@
 """Configuration for the LLM Council."""
 
 import os
+import sys
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -8,8 +10,18 @@ load_dotenv()
 # OpenRouter API endpoint
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
+
+def _get_data_base() -> Path:
+    """Return the base data directory. Uses AppData when running as a frozen exe."""
+    if getattr(sys, 'frozen', False):
+        return Path(os.environ.get('APPDATA', Path.home())) / 'ConsiliumAI' / 'data'
+    return Path(__file__).parent.parent / 'data'
+
+
+DATA_BASE = _get_data_base()
+
 # Data directory for conversation storage
-DATA_DIR = "data/conversations"
+DATA_DIR = str(DATA_BASE / "conversations")
 
 
 def get_openrouter_api_key() -> str:

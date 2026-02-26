@@ -239,6 +239,7 @@ Reliability and observability:
 Packaging:
 - Longer term: rename folders to consilium/, consolidate versions, reduce drift from upstream.
 - Document which files differ from upstream LLM Council.
+- One-click Windows installer using Inno Setup: bundles Python, Node.js, and the app into a single .exe. No black windows, no steps for non-technical users. Replaces SETUP.bat flow entirely.
 
 ## 13) Known good end-to-end tests
 

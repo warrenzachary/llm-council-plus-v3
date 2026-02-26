@@ -119,7 +119,7 @@ cd /d "%PROJECT_DIR%"
 echo  Web packages installed.
 
 
-:: ── Create tree icon ──────────────────────────────────────────────
+:: ── Create owl icon ───────────────────────────────────────────────
 echo.
 echo  Creating desktop shortcut...
 
@@ -133,15 +133,24 @@ echo $bmp = New-Object System.Drawing.Bitmap(64, 64, [System.Drawing.Imaging.Pix
 echo $g = [System.Drawing.Graphics]::FromImage($bmp)
 echo $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
 echo $g.Clear([System.Drawing.Color]::Transparent)
-echo $trunk = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255,101,67,33))
-echo $g.FillRectangle($trunk, 27, 44, 10, 18)
-echo $green = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255,46,125,50))
-echo $p1 = [System.Drawing.PointF[]]@([System.Drawing.PointF]::new(32,4),[System.Drawing.PointF]::new(18,28),[System.Drawing.PointF]::new(46,28))
-echo $g.FillPolygon($green,$p1)
-echo $p2 = [System.Drawing.PointF[]]@([System.Drawing.PointF]::new(32,20),[System.Drawing.PointF]::new(14,40),[System.Drawing.PointF]::new(50,40))
-echo $g.FillPolygon($green,$p2)
-echo $p3 = [System.Drawing.PointF[]]@([System.Drawing.PointF]::new(32,34),[System.Drawing.PointF]::new(10,52),[System.Drawing.PointF]::new(54,52))
-echo $g.FillPolygon($green,$p3)
+echo $body = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255,93,64,55))
+echo $g.FillEllipse($body, 16, 30, 32, 30)
+echo $g.FillEllipse($body, 18, 8, 28, 28)
+echo $leftEar = [System.Drawing.PointF[]]@([System.Drawing.PointF]::new(20,20),[System.Drawing.PointF]::new(17,6),[System.Drawing.PointF]::new(28,14))
+echo $rightEar = [System.Drawing.PointF[]]@([System.Drawing.PointF]::new(44,20),[System.Drawing.PointF]::new(47,6),[System.Drawing.PointF]::new(36,14))
+echo $g.FillPolygon($body, $leftEar)
+echo $g.FillPolygon($body, $rightEar)
+echo $cream = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255,255,236,179))
+echo $g.FillEllipse($cream, 20, 14, 24, 22)
+echo $yellow = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255,255,214,0))
+echo $g.FillEllipse($yellow, 21, 15, 9, 9)
+echo $g.FillEllipse($yellow, 34, 15, 9, 9)
+echo $black = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255,0,0,0))
+echo $g.FillEllipse($black, 23, 17, 5, 5)
+echo $g.FillEllipse($black, 36, 17, 5, 5)
+echo $beak = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255,255,143,0))
+echo $beakPts = [System.Drawing.PointF[]]@([System.Drawing.PointF]::new(29,25),[System.Drawing.PointF]::new(35,25),[System.Drawing.PointF]::new(32,31))
+echo $g.FillPolygon($beak, $beakPts)
 echo $g.Dispose()
 echo $ms = New-Object System.IO.MemoryStream
 echo $bmp.Save($ms,[System.Drawing.Imaging.ImageFormat]::Png)

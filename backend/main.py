@@ -2,14 +2,17 @@
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import os
+import sys
 import uuid
 import json
 import asyncio
 import pathlib
+from pathlib import Path
 
 
 from .conversation import ConversationManager
@@ -37,6 +40,18 @@ from .settings import (
 )
 
 app = FastAPI(title="LLM Council Plus API")
+
+
+@app.on_event("startup")
+async def ensure_data_dirs():
+    """Create data directories on first run (important for packaged installs)."""
+    from .config import DATA_BASE
+    from .settings import SETTINGS_FILE
+    DATA_BASE.mkdir(parents=True, exist_ok=True)
+    (DATA_BASE / "conversations").mkdir(parents=True, exist_ok=True)
+    (DATA_BASE / "uploads").mkdir(parents=True, exist_ok=True)
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+
 
 # Enable CORS for local development and network access
 # Allow requests from any hostname on ports 5173 and 3000 (frontend)
@@ -81,8 +96,8 @@ class Conversation(BaseModel):
     messages: List[Dict[str, Any]]
 
 
-@app.get("/")
-async def root():
+@app.get("/api/health")
+async def health():
     """Health check endpoint."""
     return {"status": "ok", "service": "LLM Council API"}
 
@@ -1223,6 +1238,28 @@ async def test_openrouter_api(request: TestOpenRouterRequest):
         return {"success": False, "message": "Request timed out"}
     except Exception as e:
         return {"success": False, "message": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Static file serving (built frontend)
+# When running as a PyInstaller bundle, assets live in sys._MEIPASS/frontend/dist.
+# In development, they live at <project_root>/frontend/dist (after npm run build).
+# ---------------------------------------------------------------------------
+def _get_static_dir() -> Path:
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS) / 'frontend' / 'dist'
+    return Path(__file__).parent.parent / 'frontend' / 'dist'
+
+
+_static_dir = _get_static_dir()
+
+
+if _static_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(_static_dir / "assets")), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        return FileResponse(str(_static_dir / "index.html"))
 
 
 if __name__ == "__main__":

@@ -2,13 +2,24 @@
 
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Optional, List, Dict
 from pydantic import BaseModel
 from .search import SearchProvider
 
+
+def _get_settings_file() -> Path:
+    """Return the settings file path. Uses AppData when running as a frozen exe."""
+    if getattr(sys, 'frozen', False):
+        data_base = Path(os.environ.get('APPDATA', Path.home())) / 'ConsiliumAI' / 'data'
+    else:
+        data_base = Path(__file__).parent.parent / 'data'
+    return data_base / 'settings.json'
+
+
 # Settings file path
-SETTINGS_FILE = Path(__file__).parent.parent / "data" / "settings.json"
+SETTINGS_FILE = _get_settings_file()
 
 # Default models (matches original llm-council defaults)
 DEFAULT_COUNCIL_MODELS = ["", ""]
