@@ -29,6 +29,16 @@ if __name__ == "__main__":
         if str(bundle_dir) not in sys.path:
             sys.path.insert(0, str(bundle_dir))
 
+        # console=False sets sys.stdout/stderr to None, which causes uvicorn's
+        # logging formatter to crash with "NoneType has no attribute isatty".
+        # Redirect both to a log file so the app runs and errors are capturable.
+        import os
+        log_dir = Path(os.environ.get("APPDATA", Path.home())) / "ConsiliumAI"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = open(log_dir / "consilium.log", "w", buffering=1, encoding="utf-8")
+        sys.stdout = log_file
+        sys.stderr = log_file
+
     if _port_in_use(PORT):
         # Server already running — just open a new browser tab.
         webbrowser.open(URL)
