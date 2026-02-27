@@ -32,6 +32,8 @@ export const COUNCIL_TIERS = {
     'llama-3.1-405b',
     // DeepSeek
     'deepseek-r1',
+    // Perplexity (real-time web search built in — unique perspective)
+    'sonar-pro', 'sonar-reasoning-pro',
   ],
   value: [
     // Anthropic
@@ -48,6 +50,8 @@ export const COUNCIL_TIERS = {
     'deepseek-chat',
     // Mistral
     'mistral-large',
+    // Perplexity
+    'sonar',
   ],
   not_recommended: [
     // Very small or outdated models
@@ -79,6 +83,7 @@ export const CHAIRMAN_TIERS = {
     'gpt-4o-mini',
     'gemini-2.0-flash-lite',
     'grok-3-mini',
+    'sonar-pro', 'sonar-reasoning-pro', 'sonar',
     'llama-3.3-70b', 'llama-3.1-405b',
     'mistral-large', 'mistral-small', 'mistral-7b',
     'deepseek-chat',
