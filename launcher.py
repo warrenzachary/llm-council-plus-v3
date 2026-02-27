@@ -17,7 +17,7 @@ def _port_in_use(port: int) -> bool:
 
 
 def _open_browser():
-    time.sleep(2)
+    time.sleep(6)
     webbrowser.open(URL)
 
 
