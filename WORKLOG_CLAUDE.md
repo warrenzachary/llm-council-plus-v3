@@ -167,6 +167,19 @@ Format: Append-only. Each entry records one logically grouped change or decision
 - **Why:** Gives users a one-click way to file issues directly to GitHub, with context auto-captured. Auditable and triggers GitHub email notifications for Warren.
 - **Follow-up:** Warren needs to create a GitHub PAT with `public_repo` scope and enter it in Settings > Feedback.
 
+---
+
+## 2026-02-26 -- Branch: cc/autonomous-20260217
+
+### Entry 15 | Fix: uvicorn crash in frozen exe (console=False)
+- **Commit:** c39e4f0
+- **Files:** launcher.py, installer/ConsiliumAI_Setup.exe
+- **What:** Added stdout/stderr redirect to `%APPDATA%\ConsiliumAI\consilium.log` in launcher.py before uvicorn starts. PyInstaller's `console=False` sets sys.stdout/stderr to None; uvicorn's logging formatter calls `.isatty()` on startup and crashes with `AttributeError: 'NoneType' object has no attribute 'isatty'`. Redirecting to a log file fixes the crash and provides a debug log on partner machines.
+- **Why:** Bruce (partner) reported the crash via screenshot on first install.
+- **Follow-up:** Warren to test new installer locally, then confirm with Bruce. See NEXT_STEPS.md.
+
+---
+
 ### Entry 13 | One-click launcher for non-technical colleague
 - **Commit:** None yet
 - **Files:** SETUP.bat, start_consilium.ps1
