@@ -4,48 +4,51 @@ Last updated: 2026-02-26
 
 ---
 
-## Immediate: Validate the installer fix for Bruce
+## Immediate: Warren tests installer, then sends to Bruce
 
-Bruce got an error on first install:
-> "Failed to execute script 'launcher' due to unhandled exception: Unable to configure formatter 'default'"
+All fixes and features are built into the current installer. Steps:
 
-**Root cause:** PyInstaller's `console=False` sets `sys.stdout/stderr` to `None`. Uvicorn crashes calling `.isatty()` on startup.
-
-**Fix applied:** `launcher.py` now redirects stdout/stderr to `%APPDATA%\ConsiliumAI\consilium.log` before uvicorn starts. Committed (c39e4f0) and pushed.
-
-### Steps to validate before sending to Bruce:
-
-1. **Uninstall current version**
-   - Windows Settings → Apps → ConsiliumAI → Uninstall
-
-2. **Run the new installer**
-   - `installer/ConsiliumAI_Setup.exe` (already rebuilt and in the repo)
-   - Or download from the same link you sent Bruce
-
-3. **Confirm it works**
-   - Browser should open automatically after ~10 seconds
-   - App should load at http://localhost:8001
+1. **Kill any running ConsiliumAI** (Claude Code can do this)
+2. **Uninstall current version** — Windows Settings → Apps → ConsiliumAI → Uninstall
+3. **Run new installer** — `installer/ConsiliumAI_Setup.exe`
+4. **Confirm:**
+   - Browser opens after ~6 seconds
+   - App loads at http://localhost:8001
+   - Settings → Council Config shows tier badges on model dropdowns
    - No error dialog
+5. **Send Bruce the link:**
+   - https://github.com/warrenzachary/llm-council-plus-v3/raw/cc/autonomous-20260217/installer/ConsiliumAI_Setup.exe
+   - Ask him to uninstall first, then reinstall
+   - Use the email draft from this session (already has instructions)
 
-4. **If it works → tell Bruce to reinstall**
-   - Same download link: https://github.com/warrenzachary/llm-council-plus-v3/raw/cc/autonomous-20260217/installer/ConsiliumAI_Setup.exe
-   - He should uninstall first (Windows Settings → Apps → ConsiliumAI → Uninstall), then run the new installer
-
-5. **If it fails → check the log**
-   - Log file is at: `%APPDATA%\ConsiliumAI\consilium.log`
-   - Share the contents with Claude Code to diagnose
+**If app fails to start → check log at:** `%APPDATA%\ConsiliumAI\consilium.log`
 
 ---
 
-## After Bruce is up and running
+## What's in the current installer (last build: 2026-02-26, commit 135a294)
 
+- Fix: uvicorn crash on first launch (stdout/stderr redirect to log file)
+- Fix: browser opens after 6s delay (was 2s — too fast on some machines)
+- Feat: model recommendation tier badges in Council Config dropdowns
+  - ⭐ Best Quality / 💰 Good Value / ⚠️ Limited / ○ Unrated
+  - Different tiers for council member vs chairman roles
+  - "⭐ Recommended only" filter toggle on each dropdown
+  - Perplexity Sonar models included
+
+---
+
+## After Bruce is confirmed working
+
+- Walk Bruce through first-time setup (council config, API key) — manual walkthrough
 - Visual polish pass (deferred multiple sessions, still not blocking)
-- Any issues that come up from Bruce's usage
+- Monitor for any issues from Bruce's usage
 
 ---
 
 ## Reference
 
-- Download link for Bruce: https://github.com/warrenzachary/llm-council-plus-v3/raw/cc/autonomous-20260217/installer/ConsiliumAI_Setup.exe
+- Download link: https://github.com/warrenzachary/llm-council-plus-v3/raw/cc/autonomous-20260217/installer/ConsiliumAI_Setup.exe
 - Branch: cc/autonomous-20260217
-- Last commit: c39e4f0
+- Last installer commit: 135a294
+- Model recommendations file: frontend/src/data/modelRecommendations.js
+- Shareable CSV: Model Recommendations.csv (project root)

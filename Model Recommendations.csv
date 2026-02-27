@@ -1,0 +1,25 @@
+Provider,Model Name,OpenRouter Model ID,Council Member,Chairman,Notes
+Anthropic,Claude Opus 4,anthropic/claude-opus-4,Best Quality,Best Quality,Most capable Anthropic model; excellent for both roles
+Anthropic,Claude Sonnet 4.5,anthropic/claude-sonnet-4-5,Best Quality,Good Value,Strong all-rounder; good balance of quality and speed
+Anthropic,Claude Haiku 4.5,anthropic/claude-haiku-4-5,Good Value,Not Recommended,Fast and cheap; fine for council but too lightweight to synthesize as chairman
+OpenAI,GPT-4.1,openai/gpt-4.1,Best Quality,Best Quality,OpenAI flagship; excellent instruction-following and synthesis
+OpenAI,GPT-4o,openai/gpt-4o,Best Quality,Good Value,Strong general model; solid for both roles
+OpenAI,GPT-4o mini,openai/gpt-4o-mini,Good Value,Not Recommended,Cost-effective council member; not deep enough for chairman synthesis
+OpenAI,o3,openai/o3,Best Quality,Best Quality,Advanced reasoning model; premium choice for both roles
+OpenAI,o4-mini,openai/o4-mini,Best Quality,Good Value,Fast reasoning model; great council member; adequate as chairman
+Google,Gemini 2.5 Pro,google/gemini-2.5-pro,Best Quality,Best Quality,Google's best; long context and strong synthesis
+Google,Gemini 2.0 Flash,google/gemini-2.0-flash,Good Value,Good Value,Fast and capable; good value across both roles
+Google,Gemini 2.0 Flash Lite,google/gemini-2.0-flash-lite,Not Recommended,Not Recommended,Too limited for quality deliberation work
+xAI,Grok 3,x-ai/grok-3,Best Quality,Good Value,Strong model with broad knowledge; good council member
+xAI,Grok 3 Mini,x-ai/grok-3-mini,Good Value,Not Recommended,Lighter version; fine for council diversity; not suited for chairman
+Meta,Llama 3.1 405B,meta-llama/llama-3.1-405b-instruct,Best Quality,Not Recommended,Large open-source model; diverse perspective for council; not ideal for chairman synthesis
+Meta,Llama 3.3 70B,meta-llama/llama-3.3-70b-instruct,Good Value,Not Recommended,Solid mid-size open-source model; good value council member
+Meta,Llama 3.2 3B,meta-llama/llama-3.2-3b-instruct,Not Recommended,Not Recommended,Too small for meaningful contributions
+Meta,Llama 3.2 1B,meta-llama/llama-3.2-1b-instruct,Not Recommended,Not Recommended,Too small for meaningful contributions
+DeepSeek,DeepSeek R1,deepseek/deepseek-r1,Best Quality,Good Value,Strong reasoning model; good for analytical council work
+DeepSeek,DeepSeek Chat V3,deepseek/deepseek-chat-v3-0324,Good Value,Not Recommended,Good value conversational model; not suited for chairman role
+Mistral,Mistral Large,mistralai/mistral-large-2411,Good Value,Not Recommended,Solid European model; adds diversity to council; not deep enough for chairman
+Mistral,Mistral Small,mistralai/mistral-small-3.1-24b-instruct,Not Recommended,Not Recommended,Too limited for quality deliberation work
+Perplexity,Sonar Pro,perplexity/sonar-pro,Best Quality,Not Recommended,Real-time web search built in; unique grounded perspective for council; not suited for chairman
+Perplexity,Sonar Reasoning Pro,perplexity/sonar-reasoning-pro,Best Quality,Not Recommended,Reasoning + real-time web search; strong analytical council member; not suited for chairman
+Perplexity,Sonar,perplexity/sonar,Good Value,Not Recommended,Real-time web search at lower cost; good value council member; not suited for chairman

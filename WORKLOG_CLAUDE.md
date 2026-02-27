@@ -176,7 +176,26 @@ Format: Append-only. Each entry records one logically grouped change or decision
 - **Files:** launcher.py, installer/ConsiliumAI_Setup.exe
 - **What:** Added stdout/stderr redirect to `%APPDATA%\ConsiliumAI\consilium.log` in launcher.py before uvicorn starts. PyInstaller's `console=False` sets sys.stdout/stderr to None; uvicorn's logging formatter calls `.isatty()` on startup and crashes with `AttributeError: 'NoneType' object has no attribute 'isatty'`. Redirecting to a log file fixes the crash and provides a debug log on partner machines.
 - **Why:** Bruce (partner) reported the crash via screenshot on first install.
-- **Follow-up:** Warren to test new installer locally, then confirm with Bruce. See NEXT_STEPS.md.
+
+### Entry 16 | Fix: increase browser open delay from 2s to 6s
+- **Commit:** 2574194
+- **Files:** launcher.py, installer/ConsiliumAI_Setup.exe
+- **What:** Browser was opening before server was ready on some machines. Increased delay from 2 to 6 seconds.
+- **Why:** Warren got "This site can't be reached" on first install test; resolved after waiting and refreshing.
+
+### Entry 17 | Feat: model recommendation tiers in council config dropdowns
+- **Commits:** 2b82f05, 5bc741d, 135a294
+- **Files:** frontend/src/data/modelRecommendations.js (new), frontend/src/components/SearchableModelSelect.jsx, frontend/src/components/settings/CouncilConfig.jsx, Notes.MD, installer/ConsiliumAI_Setup.exe
+- **What:**
+  - Created `modelRecommendations.js` with curated tier lists for council and chairman roles: Best Quality (⭐), Good Value (💰), Limited (⚠️), Unrated (○)
+  - Tier assignments differ by role: chairman requires premium synthesis models; council benefits from diversity
+  - Perplexity Sonar models added as Best Quality council members (unique real-time web search perspective); not recommended as chairman
+  - `SearchableModelSelect` now accepts a `role` prop; shows tier badge on each option; includes "⭐ Recommended only" toggle filter that hides Limited and Unrated models
+  - `CouncilConfig` passes `role="council"` and `role="chairman"` to respective dropdowns
+  - All models not in curated list show "○ Unrated" — new OpenRouter models auto-appear as Unrated until manually reviewed
+  - Added roadmap note in Notes.MD about future dynamic recommendation updates via hosted config
+  - Created `Model Recommendations.csv` at project root with human-readable tier list for sharing
+- **Why:** Non-technical users (Bruce) had no guidance on which of hundreds of OpenRouter models to pick.
 
 ---
 
