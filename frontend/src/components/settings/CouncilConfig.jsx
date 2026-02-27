@@ -266,6 +266,7 @@ export default function CouncilConfig({
                                             isDisabled={isLoadingModels && allModels.length === 0}
                                             isLoading={isLoadingModels}
                                             allModels={allModels}
+                                            role="council"
                                         />
                                     </div>
                                     {index >= 2 && (
@@ -388,6 +389,7 @@ export default function CouncilConfig({
                             placeholder="Search models..."
                             isLoading={isLoadingModels}
                             allModels={allModels}
+                            role="chairman"
                         />
                     </div>
 

@@ -1,8 +1,12 @@
+import { useState } from 'react';
 import Select from 'react-select';
+import { getModelTier, TIERS } from '../data/modelRecommendations';
 
 /**
  * Searchable model selector using react-select.
  * Provides type-to-filter functionality for large model lists.
+ * When `role` is set ('council' or 'chairman'), shows recommendation tier badges
+ * and a "Recommended only" filter toggle.
  */
 export default function SearchableModelSelect({
   models,
@@ -12,7 +16,10 @@ export default function SearchableModelSelect({
   isDisabled = false,
   isLoading = false,
   allModels = null, // Optional: all models to find current value if filtered out
+  role = null,      // 'council' | 'chairman' — enables tier badges when set
 }) {
+  const [filterRecommended, setFilterRecommended] = useState(false);
+
   // Convert models to react-select format with grouping
   const groupedOptions = models.reduce((acc, model) => {
     // Determine group label
@@ -32,10 +39,13 @@ export default function SearchableModelSelect({
     if (!acc[groupLabel]) {
       acc[groupLabel] = [];
     }
+
+    const tier = role ? getModelTier(model.id, role) : null;
     acc[groupLabel].push({
       value: model.id,
       label: model.name,
-      model: model, // Keep full model data for reference
+      model: model,
+      tier,
     });
     return acc;
   }, {});
@@ -48,7 +58,7 @@ export default function SearchableModelSelect({
     'Local (Ollama)'
   ];
 
-  const options = Object.keys(groupedOptions)
+  let options = Object.keys(groupedOptions)
     .sort((a, b) => {
       const indexA = providerOrder.indexOf(a);
       const indexB = providerOrder.indexOf(b);
@@ -61,6 +71,16 @@ export default function SearchableModelSelect({
       label: group,
       options: groupedOptions[group],
     }));
+
+  // Apply recommended filter: keep only best + value tiers
+  if (filterRecommended && role) {
+    options = options
+      .map(group => ({
+        ...group,
+        options: group.options.filter(opt => opt.tier === 'best' || opt.tier === 'value'),
+      }))
+      .filter(group => group.options.length > 0);
+  }
 
   // Find current value in options
   let selectedOption = options
@@ -76,9 +96,32 @@ export default function SearchableModelSelect({
         value: currentModel.id,
         label: `${currentModel.name} (filtered)`,
         model: currentModel,
+        tier: role ? getModelTier(currentModel.id, role) : null,
       };
     }
   }
+
+  // Custom option renderer: shows model name + tier badge
+  const formatOptionLabel = (option) => {
+    const tierInfo = option.tier ? TIERS[option.tier] : null;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {option.label}
+        </span>
+        {tierInfo && (
+          <span style={{
+            fontSize: '10px',
+            color: tierInfo.color,
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+          }}>
+            {tierInfo.label}
+          </span>
+        )}
+      </div>
+    );
+  };
 
   // Custom styles to match the dark theme
   const customStyles = {
@@ -129,6 +172,7 @@ export default function SearchableModelSelect({
           ? 'rgba(59, 130, 246, 0.15)'
           : 'transparent',
       color: state.isSelected ? '#ffffff' : '#e2e8f0',
+      opacity: state.data.tier === 'not_recommended' ? 0.5 : 1,
       padding: '8px 12px',
       borderRadius: '4px',
       cursor: 'pointer',
@@ -182,28 +226,51 @@ export default function SearchableModelSelect({
   };
 
   return (
-    <Select
-      options={options}
-      value={selectedOption}
-      onChange={(option) => onChange(option ? option.value : '')}
-      placeholder={placeholder}
-      isDisabled={isDisabled}
-      isLoading={isLoading}
-      isClearable
-      isSearchable
-      styles={customStyles}
-      classNamePrefix="model-select"
-      noOptionsMessage={() => "No models found"}
-      loadingMessage={() => "Loading models..."}
-      filterOption={(option, inputValue) => {
-        if (!inputValue) return true;
-        const searchLower = inputValue.toLowerCase();
-        // Search in both label and value (model ID)
-        return (
-          option.label.toLowerCase().includes(searchLower) ||
-          option.value.toLowerCase().includes(searchLower)
-        );
-      }}
-    />
+    <div>
+      {role && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px' }}>
+          <button
+            type="button"
+            onClick={() => setFilterRecommended(f => !f)}
+            style={{
+              background: filterRecommended ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+              border: `1px solid ${filterRecommended ? 'rgba(59, 130, 246, 0.5)' : 'rgba(148, 163, 184, 0.2)'}`,
+              borderRadius: '4px',
+              color: filterRecommended ? '#60a5fa' : '#64748b',
+              cursor: 'pointer',
+              fontSize: '11px',
+              padding: '2px 8px',
+              lineHeight: '18px',
+            }}
+          >
+            ⭐ Recommended only
+          </button>
+        </div>
+      )}
+      <Select
+        options={options}
+        value={selectedOption}
+        onChange={(option) => onChange(option ? option.value : '')}
+        placeholder={placeholder}
+        isDisabled={isDisabled}
+        isLoading={isLoading}
+        isClearable
+        isSearchable
+        styles={customStyles}
+        classNamePrefix="model-select"
+        noOptionsMessage={() => "No models found"}
+        loadingMessage={() => "Loading models..."}
+        formatOptionLabel={formatOptionLabel}
+        filterOption={(option, inputValue) => {
+          if (!inputValue) return true;
+          const searchLower = inputValue.toLowerCase();
+          // Search in both label and value (model ID)
+          return (
+            option.label.toLowerCase().includes(searchLower) ||
+            option.value.toLowerCase().includes(searchLower)
+          );
+        }}
+      />
+    </div>
   );
 }

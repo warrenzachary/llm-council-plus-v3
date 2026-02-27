@@ -17,6 +17,7 @@ wheels/
 
 # Data files
 data/
+!frontend/src/data/
 
 # Test and debug scripts
 backend/test_*.py
