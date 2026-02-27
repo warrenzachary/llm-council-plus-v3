@@ -229,6 +229,10 @@ Model configuration and UX:
   - show which models ran
   - show which failed and why
   - show timings per stage and per model
+- Dynamic model recommendation updates:
+  - Currently, tier assignments (Best Quality / Good Value / Limited) are hardcoded in frontend/src/data/modelRecommendations.js and require a manual code update when new models are released.
+  - Future: fetch tier assignments from a remote source (e.g. a maintained JSON file or API endpoint) so recommendations stay current without a code deploy.
+  - Alternative: add an in-app button ("Refresh Model Ratings") that pulls the latest recommendations from a hosted config file.
 
 Reliability and observability:
 - Improve logging:

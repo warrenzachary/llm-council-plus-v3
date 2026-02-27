@@ -14,6 +14,7 @@ export const TIERS = {
   best: { label: '⭐ Best Quality', color: '#4ade80' },
   value: { label: '💰 Good Value', color: '#60a5fa' },
   not_recommended: { label: '⚠️ Limited', color: '#94a3b8' },
+  unrated: { label: '○ Unrated', color: '#475569' },
 };
 
 export const COUNCIL_TIERS = {
@@ -103,5 +104,5 @@ export function getModelTier(modelId, role = 'council') {
   for (const tier of ['best', 'value', 'not_recommended']) {
     if (tiers[tier].some(pattern => id.includes(pattern))) return tier;
   }
-  return null; // unrated — no badge shown
+  return 'unrated';
 }

@@ -72,7 +72,7 @@ export default function SearchableModelSelect({
       options: groupedOptions[group],
     }));
 
-  // Apply recommended filter: keep only best + value tiers
+  // Apply recommended filter: keep only best + value tiers (hide limited and unrated)
   if (filterRecommended && role) {
     options = options
       .map(group => ({
