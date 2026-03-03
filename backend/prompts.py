@@ -7,6 +7,7 @@ Question: {user_query}"""
 STAGE1_SEARCH_CONTEXT_TEMPLATE = """You have access to the following real-time web search results.
 You MUST use this information to answer the question, even if it contradicts your internal knowledge cutoff.
 Do not say "I cannot access real-time information" or "My knowledge is limited to..." because you have the search results right here.
+When using information from the search results, cite the source URL inline (e.g., [Source Title](URL)) so that the reader can verify the information.
 
 Search Results:
 {search_context}
@@ -59,6 +60,8 @@ Your task as Chairman is to synthesize all of this information into a single, co
 - The individual responses and their insights
 - The peer rankings and what they reveal about response quality
 - Any patterns of agreement or disagreement
+
+Include a "Sources" section at the end of your response listing the URLs that support the key claims in your answer. Use markdown link format: [Source Title](URL). Only include sources that were actually referenced in the search results or council member responses.
 
 Provide a clear, well-reasoned final answer that represents the council's collective wisdom:"""
 

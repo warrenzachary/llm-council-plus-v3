@@ -25,7 +25,7 @@ export default function ChatInterface({
     searchProvider = 'duckduckgo',
 }) {
     const [input, setInput] = useState('');
-    const [webSearch, setWebSearch] = useState(false);
+    const [webSearch, setWebSearch] = useState(true);
     const [uploadedFiles, setUploadedFiles] = useState([]);
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
